@@ -72,7 +72,10 @@ done
 
 : > "$MAILDIR/relay.log"
 rm -f "$MAILDIR/NEEDS_ATTN"
-: > "$MAILDIR/watch.processed"
+# watch.processed는 inbox.md와 짝을 이루는 "이미 알림 보낸 메일" 기록이다. inbox.md는
+# 재시작해도 지우지 않으므로(메일 이력 유지), watch.processed도 여기서 지우면 안 된다 -
+# 지우면 다음 watch.py가 inbox.md에 쌓인 과거 메일 전체를 새 메일로 오인해 전부 재알림한다.
+touch "$MAILDIR/watch.processed"
 touch "$MAILDIR/inbox.md"
 
 for i in "${!names[@]}"; do
