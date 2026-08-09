@@ -39,3 +39,66 @@ scripts/agent-team/stop.sh [--kill-sessions]
 
 `name:cli:model`, `cli`는 `claude` 또는 `antigravity`. `main`만 사람이 승인 모드로 붙고
 나머지는 자동 승인(`antigravity`는 `--sandbox`도 추가)으로 뜬다.
+
+## CLI 설치
+
+- **claude (Claude Code)**: `npm install -g @anthropic-ai/claude-code`
+- **antigravity (agy)**: https://antigravity.google 에서 설치. 설치 후 `agy install`로
+  PATH/셸 설정.
+
+## MCP 서버 설정
+
+두 CLI 모두 MCP를 지원하지만 설정 파일 위치가 다르다.
+
+| CLI | 명령 | 설정 파일 |
+|---|---|---|
+| claude | `claude mcp add <name> -- <command> [args...]` | `~/.claude.json` (자동 관리) |
+| agy | 직접 JSON 편집 | `~/.gemini/config/mcp_config.json` |
+
+agy 쪽은 `~/.gemini/antigravity/mcp_config.json`처럼 그럴듯해 보이는 다른 경로가 여럿
+있지만(스키마 파일은 `.antigravity-ide-server`에 있음) **실제로 읽는 건 `~/.gemini/config/
+mcp_config.json` 하나뿐**이다 (실측 확인, 2026-08). 포맷은 Claude Desktop과 동일한
+`mcpServers` 객체:
+
+```json
+{
+  "mcpServers": {
+    "codegraph": { "command": "/path/to/codegraph", "args": ["serve", "--mcp"] },
+    "playwright": { "command": "npx", "args": ["-y", "@playwright/mcp@latest"] }
+  }
+}
+```
+
+이 파일 하나면 agy·claude 양쪽 다 커버되지 않는다 — **claude는 별도로
+`claude mcp add`가 필요하다.** 둘 다 등록해야 두 CLI 모두에서 같은 MCP 서버를 쓸 수 있다.
+
+확인: `agy -p "사용 가능한 MCP 서버 목록을 알려줘" --dangerously-skip-permissions`
+
+## 스킬(Skill) 설정
+
+[skills CLI](https://skills.sh) (`npx skills`)로 두 CLI에 한 번에 설치한다:
+
+```bash
+npx skills add <owner>/<repo> -g -a claude-code antigravity-cli -y
+# 저장소에 스킬이 여러 개면: -s <skill-이름1> <skill-이름2>
+```
+
+**함정**: 이 명령은 스킬을 `~/.agents/skills/`에 설치하고 Claude Code용으로는
+`~/.claude/skills/`에 심볼릭 링크를 만들어준다. 여기까지는 자동으로 잘 된다. 하지만
+**agy(Antigravity CLI)는 `~/.agents/skills/`를 읽지 않는다** — `~/.gemini/config/skills/`만
+인식한다(실측 확인, 2026-08). 그래서 설치 후 한 번 동기화가 필요하다:
+
+```bash
+scripts/setup/sync-antigravity-skills.sh
+```
+
+새 스킬을 추가로 설치할 때마다 다시 실행하면 된다 (이미 연결된 건 건너뛴다).
+
+확인: `agy -p "사용 가능한 스킬 목록을 알려줘" --dangerously-skip-permissions`
+
+설치되는 스킬은 각자 다른 사람이 만든 외부 코드/프롬프트다. `npx skills add`는 설치 시
+Gen/Socket/Snyk 3종 보안 스캔 결과를 보여주는데, 코드를 직접 실행하는 유형의 스킬
+(브라우저 자동화 등)은 "임의 코드 실행 가능"이라는 이유만으로도 Critical/High로 뜰 수 있다
+— Bash 툴 자체가 이미 가진 것과 같은 종류의 권한이라는 뜻이지, 그 자체로 악성이라는 뜻은
+아니다. 그래도 설치 전 `-l`(`--list`)로 목록만 먼저 보거나, 설치 후 `~/.agents/skills/<name>/
+SKILL.md`를 한 번 읽어보는 걸 권장한다.
