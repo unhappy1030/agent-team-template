@@ -17,6 +17,7 @@ usage() {
 사용법: agent-team [--team <이름>] <명령> [인자...]
 
 명령:
+  init [target-dir]                         새 프로젝트에 팀 처음부터 생성 (템플릿 복사)
   start [--kill-sessions 아님, 인자 없음]   팀 세션 기동 (필요 시 자동 온보딩)
   stop [--kill-sessions]                    watch.py 중지 (+옵션: tmux 세션도 종료)
   dashboard                                 세션 대시보드 생성
@@ -41,6 +42,11 @@ fi
 cmd="${1:-}"
 [[ -z "$cmd" ]] && usage
 shift || true
+
+# init은 아직 .agent-mail이 없는 게 정상이라(그걸 만드는 명령이므로), 아래 탐색을 거치지 않는다.
+if [[ "$cmd" == "init" ]]; then
+  exec "$SCRIPT_DIR/init.sh" "$@"
+fi
 
 # cwd에서 위로 올라가며 .agent-mail 또는 .agent-mail-* 디렉터리를 찾는다 (git이 .git 찾는 방식과 동일).
 dir="$PWD"
@@ -89,6 +95,11 @@ fi
 export MAILDIR="$chosen"
 export TEAM="$(team_name_of "$chosen")"
 [[ "$TEAM" == "(기본팀)" ]] && unset TEAM
+
+# start.sh 등은 REPO_ROOT를 자기 파일 위치(스크립트 실치가 항상 Banneret이 되어버림 -
+# ~/.local/bin/agent-team은 심볼릭 링크라 어느 프로젝트에서 부르든 실제로는 이 저장소의
+# start.sh가 실행된다)로 재계산하므로, 여기서 실제 대상 프로젝트 루트를 export해 덮어쓴다.
+export REPO_ROOT="$(dirname "$chosen")"
 
 case "$cmd" in
   start|stop|dashboard|status|send|reply)

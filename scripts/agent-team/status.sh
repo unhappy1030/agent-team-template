@@ -4,7 +4,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$DIR/../.." && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "$DIR/../.." && pwd)}"
 source "$DIR/_resolve.sh"
 
 python3 "$DIR/status.py"

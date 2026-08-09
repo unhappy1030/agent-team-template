@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 source "$(dirname "${BASH_SOURCE[0]}")/_resolve.sh"
 DASH="$TEAM/dashboard"
 

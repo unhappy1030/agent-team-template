@@ -6,6 +6,23 @@ reviewer가 내부적으로 위임해 종합).
 
 ## 새 프로젝트에 설치
 
+가장 쉬운 방법은 전역 `agent-team` 명령을 한 번 설치해두고, 프로젝트마다 `init`만
+실행하는 것이다:
+
+```bash
+scripts/setup/install-cli.sh   # ~/.local/bin/agent-team 심볼릭 링크 생성 (최초 1회)
+
+cd <target-repo>
+agent-team init                # .agent-mail + scripts/agent-team 복사 (로컬 클론 우선, 없으면 GitHub에서)
+agent-team start                # role 파일의 <TODO>를 대화형으로 채운 뒤 팀 기동
+```
+
+`agent-team`은 cwd에서 위로 올라가며 `.agent-mail`을 찾아 그 프로젝트에 명령을 실행하므로(git이
+`.git` 찾는 방식과 동일), 설치는 한 번만 하면 이후 어느 프로젝트에서든 그냥 `agent-team start`
+처럼 쓰면 된다. 한 저장소에 팀이 여러 개면 `--team <이름>`으로 선택한다.
+
+전역 명령 없이 수동으로 복사해도 된다:
+
 ```bash
 cp -r scripts/agent-team <target-repo>/scripts/
 cp -r agent-mail-template <target-repo>/.agent-mail
