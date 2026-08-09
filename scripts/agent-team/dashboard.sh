@@ -67,7 +67,9 @@ tmux split-window -t "=$DASH:mail" -h
 tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/inbox.md'" Enter
 tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 
-tmux set-option -t "=$DASH" mouse on
+# -t "=$DASH" (콜론 없는 exact-match)는 세션 대상 set-option에서 "no such session"으로
+# 실패하는 tmux 버그가 있다(has-session/kill-session은 멀쩡함). 콜론을 붙이면 정상 동작한다.
+tmux set-option -t "=$DASH:" mouse on
 tmux select-window -t "=$DASH:overview"
 
 cat <<EOF
