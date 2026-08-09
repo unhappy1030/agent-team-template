@@ -94,7 +94,7 @@ def main():
                         ok = tmux_notify(
                             session,
                             f"[MAIL] {m.sender}로부터 새 메일 도착 ({msg_id}). "
-                            f".agent-mail/inbox.md 확인하세요.",
+                            f"{lib.MAILDIR.name}/inbox.md 확인하세요.",
                         )
                         if ok:
                             log(f"{msg_id} -> {session} 알림 전송 (depth={depth})")

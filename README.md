@@ -99,6 +99,24 @@ agent-team stop --kill-sessions
 agent-team --team featureA start
 ```
 
+`init`의 반대(팀 메일함을 통째로 삭제)와, 삭제 후 템플릿 상태로 다시 만드는 `reinit`도 있다.
+둘 다 세션이 떠 있으면 먼저 정리하고, 메일 기록·role 파일 커스터마이징이 사라지므로 팀 이름을
+그대로 입력해야 진행되는 확인 절차를 거친다(`-y`/`--yes`로 건너뛸 수 있음).
+
+```bash
+agent-team uninstall            # .agent-mail(-<team>) 삭제
+agent-team reinit               # uninstall + init: role 파일/agents.conf를 템플릿 기본값으로 리셋
+agent-team --team featureA reinit -y
+```
+
+메일 큐만 비우고 role 파일/agents.conf는 그대로 두고 싶으면 `reset`을 쓴다
+(`inbox.md`/`relay.log`/`watch.processed`/`NEEDS_ATTN` 초기화). watch.py가 떠 있으면
+자동으로 재시작해서 메모리 속 처리 기록이 비워진 inbox.md와 어긋나지 않게 한다.
+
+```bash
+agent-team reset -y
+```
+
 `agent-team`은 실행된 위치(cwd)에서 위로 올라가며 `.agent-mail`(또는 `.agent-mail-<팀>`)을
 찾아 그 팀에게 위임할 뿐인 얇은 래퍼다(git이 `.git`을 찾는 방식과 동일) — CLI 프레임워크가
 아니라 기존 `.sh` 스크립트에 `exec`으로 넘겨주는 30줄짜리 스크립트다. 저장소 폴더 안 어디서

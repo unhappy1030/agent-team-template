@@ -18,6 +18,9 @@ usage() {
 
 명령:
   init [target-dir]                         새 프로젝트에 팀 처음부터 생성 (템플릿 복사)
+  uninstall [-y|--yes]                      init의 반대: 이 팀의 메일함을 통째로 삭제 (되돌릴 수 없음)
+  reinit [-y|--yes]                         uninstall + init: 이 팀을 템플릿 상태로 리셋
+  reset [-y|--yes]                          메일 큐만 비움 (inbox/relay.log/처리기록). role/agents.conf는 유지
   start [--kill-sessions 아님, 인자 없음]   팀 세션 기동 (필요 시 자동 온보딩)
   stop [--kill-sessions]                    watch.py 중지 (+옵션: tmux 세션도 종료)
   dashboard                                 세션 대시보드 생성
@@ -102,7 +105,7 @@ export TEAM="$(team_name_of "$chosen")"
 export REPO_ROOT="$(dirname "$chosen")"
 
 case "$cmd" in
-  start|stop|dashboard|status|send|reply)
+  start|stop|dashboard|status|send|reply|uninstall|reinit|reset)
     exec "$SCRIPT_DIR/$cmd.sh" "$@"
     ;;
   *)

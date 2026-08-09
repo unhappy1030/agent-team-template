@@ -79,7 +79,10 @@ for i in "${!names[@]}"; do
   name="${names[$i]}"
   cli="${clis[$i]}"
   model="${models[$i]}"
-  role_content="$(cat "$MAILDIR/roles/$name.md")"
+  # role 파일 원문에는 항상 ".agent-mail/inbox.md"로 적혀 있다 (템플릿 고정 문구).
+  # TEAM이 기본값이 아니면 실제 메일함은 .agent-mail-$TEAM/ 이므로, 세션에 넘기기 전에
+  # 실제 MAILDIR 이름으로 치환해서 에이전트가 엉뚱한(다른 팀의) inbox.md를 보지 않게 한다.
+  role_content="$(sed "s#\.agent-mail/inbox\.md#$(basename "$MAILDIR")/inbox.md#g" "$MAILDIR/roles/$name.md")"
 
   case "$cli" in
     claude)
