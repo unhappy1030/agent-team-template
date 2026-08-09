@@ -31,11 +31,6 @@ while IFS=: read -r name cli model || [[ -n "$name" ]]; do
   cli="$(echo "$cli" | xargs)"
   model="$(echo "$model" | xargs)"
 
-  role="$MAILDIR/roles/$name.md"
-  if [[ ! -s "$role" ]] || grep -q "<TODO" "$role"; then
-    echo "역할 파일이 비어있습니다: $role — 먼저 작성한 뒤 다시 실행하세요." >&2
-    exit 1
-  fi
   if tmux has-session -t "$name" 2>/dev/null; then
     echo "이미 실행 중인 세션이 있습니다: $name (scripts/agent-team/stop.sh 로 먼저 정리하세요)" >&2
     exit 1
@@ -50,6 +45,31 @@ if [[ ${#names[@]} -eq 0 ]]; then
   echo "agents.conf에 유효한 에이전트가 없습니다." >&2
   exit 1
 fi
+
+# role 파일 중 하나라도 비어있거나 <TODO가 남아있으면, 사람과 상호작용하며
+# 프로젝트 컨텍스트를 채우는 onboard.sh를 자동으로 붙인다.
+needs_onboarding=0
+for name in "${names[@]}"; do
+  role="$MAILDIR/roles/$name.md"
+  { [[ ! -s "$role" ]] || grep -q "<TODO" "$role"; } && needs_onboarding=1
+done
+
+if [[ "$needs_onboarding" -eq 1 ]]; then
+  if [[ -t 0 && -x "$DIR/onboard.sh" ]]; then
+    echo "role 파일에 채워야 할 프로젝트 컨텍스트가 있습니다. 자동 온보딩을 시작합니다."
+    echo
+    "$DIR/onboard.sh"
+    echo
+  fi
+fi
+
+for name in "${names[@]}"; do
+  role="$MAILDIR/roles/$name.md"
+  if [[ ! -s "$role" ]] || grep -q "<TODO" "$role"; then
+    echo "역할 파일이 비어있습니다: $role — 먼저 작성한 뒤 다시 실행하세요." >&2
+    exit 1
+  fi
+done
 
 : > "$MAILDIR/relay.log"
 rm -f "$MAILDIR/NEEDS_ATTN"

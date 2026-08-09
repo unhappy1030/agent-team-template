@@ -33,10 +33,25 @@ def save_processed(ids):
     PROCESSED.write_text("\n".join(sorted(ids)) + "\n")
 
 
+NOTIFY_TIMEOUT = 5
+
+
 def tmux_notify(session, text):
-    subprocess.run(["tmux", "send-keys", "-t", session, "-l", text], check=False)
-    time.sleep(0.15)
-    subprocess.run(["tmux", "send-keys", "-t", session, "Enter"], check=False)
+    """tmux send-keys가 멈춰도(예: 세션에 클라이언트가 여럿 붙어 응답이 안 오는 경우)
+    전체 폴링 루프가 영구히 멈추지 않도록 타임아웃을 건다."""
+    try:
+        subprocess.run(
+            ["tmux", "send-keys", "-t", session, "-l", text],
+            check=False, timeout=NOTIFY_TIMEOUT,
+        )
+        time.sleep(0.15)
+        subprocess.run(
+            ["tmux", "send-keys", "-t", session, "Enter"],
+            check=False, timeout=NOTIFY_TIMEOUT,
+        )
+        return True
+    except subprocess.TimeoutExpired:
+        return False
 
 
 def note_needs_attention(msg_id, reason):
@@ -70,12 +85,17 @@ def main():
                         if name not in agents:
                             log(f"{msg_id}: 알 수 없는 수신자 '{name}' (agents.conf에 없음)")
                             continue
-                        tmux_notify(
+                        ok = tmux_notify(
                             name,
                             f"[MAIL] {m.sender}로부터 새 메일 도착 ({msg_id}). "
                             f".agent-mail/inbox.md 확인하세요.",
                         )
-                        log(f"{msg_id} -> {name} 알림 전송 (depth={depth})")
+                        if ok:
+                            log(f"{msg_id} -> {name} 알림 전송 (depth={depth})")
+                        else:
+                            reason = f"{name}에게 tmux send-keys 타임아웃 (자동 배달 실패)"
+                            log(f"{msg_id} {reason}")
+                            note_needs_attention(msg_id, reason)
                 processed.add(msg_id)
             save_processed(processed)
 

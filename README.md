@@ -11,13 +11,19 @@ cp -r scripts/agent-team <target-repo>/scripts/
 cp -r agent-mail-template <target-repo>/.agent-mail
 ```
 
-그다음 `<target-repo>/.agent-mail/roles/*.md` 각 파일 하단의 `## 프로젝트 컨텍스트` 섹션에서
-`<TODO ...>`를 실제 프로젝트 정보로 채운다 (`start.sh`는 role 파일에 `<TODO`가 남아있으면
-실행을 막는다).
+`<target-repo>/.agent-mail/roles/*.md` 각 파일 하단의 `## 프로젝트 컨텍스트` 섹션에는
+`<TODO ...>` 자리표시자가 남아있다. `start.sh`를 처음 실행하면 role 파일에 `<TODO`가 남은
+경우 `onboard.sh`가 자동으로 붙어 프로젝트를 훑어보고(package.json/README/배포 설정 등) 감지한
+값을 사람에게 보여준 뒤, 이름/스택/배포 환경/주의할 점을 몇 가지 물어 각 role 파일의
+`<TODO ...>`를 채운다. 직접 편집하고 싶으면 `start.sh`를 실행하기 전에 role 파일을 미리 채워도
+된다(그러면 onboard.sh는 건너뛴다).
+
+**중요**: `.agent-mail/`, `scripts/agent-team/`, `.github/hooks/`는 프로젝트 앱 코드가 아니라
+로컬 팀 운영 도구이므로, 설치 후 대상 저장소의 `.gitignore`에 이 세 경로를 추가하는 걸 권장한다.
 
 ```bash
 cd <target-repo>
-scripts/agent-team/start.sh       # 4개 tmux 세션 + 메일 감시(watch.py) 시작
+scripts/agent-team/start.sh       # 필요 시 onboard.sh로 컨텍스트 채운 뒤, 4개 tmux 세션 + 메일 감시(watch.py) 시작
 scripts/agent-team/dashboard.sh   # 전체 세션 한눈에 보기 (overview 타일 + 에이전트별 탭 + mail 탭)
 scripts/agent-team/status.sh      # 메일 스레드 완료 상태
 scripts/agent-team/stop.sh [--kill-sessions]
