@@ -4,7 +4,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MAILDIR="$REPO_ROOT/.agent-mail"
+source "$(dirname "${BASH_SOURCE[0]}")/_resolve.sh"
 
 if [[ -f "$MAILDIR/watch.pid" ]]; then
   pid="$(cat "$MAILDIR/watch.pid")"
@@ -21,10 +21,10 @@ if [[ "${1:-}" == "--kill-sessions" && -f "$MAILDIR/agents.conf" ]]; then
   while IFS=: read -r name cli model || [[ -n "$name" ]]; do
     name="$(echo "$name" | xargs)"
     [[ -z "$name" || "$name" == \#* ]] && continue
-    if tmux kill-session -t "$name" 2>/dev/null; then
-      echo "tmux 세션 종료: $name"
+    if tmux kill-session -t "=$TEAM/$name" 2>/dev/null; then
+      echo "tmux 세션 종료: $TEAM/$name"
     fi
   done < "$MAILDIR/agents.conf"
 fi
 
-echo "완료."
+echo "완료. (팀: $TEAM)"

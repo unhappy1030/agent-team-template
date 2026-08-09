@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """각 top-level 메일 스레드의 완료 상태(수신자 전원 답장 여부)를 계산해서 출력."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -9,6 +10,9 @@ import lib
 
 
 def main():
+    team = os.environ.get("TEAM") or lib.MAILDIR.parent.name
+    print(f"팀: {team}  ({lib.MAILDIR})")
+
     text = lib.INBOX.read_text() if lib.INBOX.exists() else ""
     messages = lib.parse_inbox(text)
     if not messages:

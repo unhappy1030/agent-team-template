@@ -14,8 +14,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MAILDIR="${MAILDIR:-$REPO_ROOT/.agent-mail}"
-DASH="agent-dashboard"
+source "$(dirname "${BASH_SOURCE[0]}")/_resolve.sh"
+DASH="$TEAM/dashboard"
 
 if [[ ! -f "$MAILDIR/agents.conf" ]]; then
   echo "agents.conf 없음: $MAILDIR/agents.conf" >&2
@@ -31,49 +31,49 @@ done < "$MAILDIR/agents.conf"
 
 running=()
 for n in "${names[@]}"; do
-  if tmux has-session -t "$n" 2>/dev/null; then
+  if tmux has-session -t "=$TEAM/$n" 2>/dev/null; then
     running+=("$n")
   else
-    echo "건너뜀 (세션 없음): $n" >&2
+    echo "건너뜀 (세션 없음): $TEAM/$n" >&2
   fi
 done
 
 if [[ ${#running[@]} -eq 0 ]]; then
-  echo "실행 중인 에이전트 세션이 없습니다. 먼저 start.sh를 실행하세요." >&2
+  echo "실행 중인 에이전트 세션이 없습니다 (팀: $TEAM). 먼저 start.sh를 실행하세요." >&2
   exit 1
 fi
 
-tmux kill-session -t "$DASH" 2>/dev/null || true
+tmux kill-session -t "=$DASH" 2>/dev/null || true
 
 # overview 창: 전체 세션 타일
 first="${running[0]}"
-tmux new-session -d -s "$DASH" -n overview "unset TMUX; tmux attach -t '$first'"
+tmux new-session -d -s "$DASH" -n overview "unset TMUX; tmux attach -t '=$TEAM/$first'"
 
 for n in "${running[@]:1}"; do
-  tmux split-window -t "$DASH:overview" "unset TMUX; tmux attach -t '$n'"
-  tmux select-layout -t "$DASH:overview" tiled >/dev/null
+  tmux split-window -t "=$DASH:overview" "unset TMUX; tmux attach -t '=$TEAM/$n'"
+  tmux select-layout -t "=$DASH:overview" tiled >/dev/null
 done
-tmux select-layout -t "$DASH:overview" tiled >/dev/null
+tmux select-layout -t "=$DASH:overview" tiled >/dev/null
 
 # 에이전트별 전용 창 (탭으로 전환하며 전체 화면으로 보기)
 for n in "${running[@]}"; do
-  tmux new-window -t "$DASH" -n "$n" "unset TMUX; tmux attach -t '$n'"
+  tmux new-window -t "=$DASH" -n "$n" "unset TMUX; tmux attach -t '=$TEAM/$n'"
 done
 
 # mail 창: relay.log / inbox.md 실시간 tail
-tmux new-window -t "$DASH" -n mail
-tmux send-keys -t "$DASH:mail" "tail -n 100 -f '$MAILDIR/relay.log'" Enter
-tmux split-window -t "$DASH:mail" -h
-tmux send-keys -t "$DASH:mail" "tail -n 100 -f '$MAILDIR/inbox.md'" Enter
-tmux select-layout -t "$DASH:mail" even-horizontal >/dev/null
+tmux new-window -t "=$DASH" -n mail
+tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/relay.log'" Enter
+tmux split-window -t "=$DASH:mail" -h
+tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/inbox.md'" Enter
+tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 
-tmux set-option -t "$DASH" mouse on
-tmux select-window -t "$DASH:overview"
+tmux set-option -t "=$DASH" mouse on
+tmux select-window -t "=$DASH:overview"
 
 cat <<EOF
-대시보드 생성됨 (${#running[@]}개 세션: ${running[*]})
+대시보드 생성됨 (팀: $TEAM, ${#running[@]}개 세션: ${running[*]})
 
-  tmux attach -t $DASH
+  tmux attach -t "=$DASH"
 
 창(탭) 목록: overview, ${running[*]}, mail
   - overview: 전체 세션 타일 뷰

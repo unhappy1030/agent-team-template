@@ -6,8 +6,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DIR="$REPO_ROOT/scripts/agent-team"
-MAILDIR="$REPO_ROOT/.agent-mail"
-export MAILDIR
+source "$DIR/_resolve.sh"
 
 mkdir -p "$MAILDIR/roles"
 
@@ -31,8 +30,8 @@ while IFS=: read -r name cli model || [[ -n "$name" ]]; do
   cli="$(echo "$cli" | xargs)"
   model="$(echo "$model" | xargs)"
 
-  if tmux has-session -t "$name" 2>/dev/null; then
-    echo "이미 실행 중인 세션이 있습니다: $name (scripts/agent-team/stop.sh 로 먼저 정리하세요)" >&2
+  if tmux has-session -t "=$TEAM/$name" 2>/dev/null; then
+    echo "이미 실행 중인 세션이 있습니다: $TEAM/$name (scripts/agent-team/stop.sh 로 먼저 정리하세요)" >&2
     exit 1
   fi
 
@@ -101,8 +100,8 @@ for i in "${!names[@]}"; do
       ;;
   esac
 
-  tmux new-session -d -s "$name" -c "$REPO_ROOT" -- "${args[@]}"
-  echo "tmux 세션 시작: $name ($cli / $model)"
+  tmux new-session -d -s "$TEAM/$name" -c "$REPO_ROOT" -- "${args[@]}"
+  echo "tmux 세션 시작: $TEAM/$name ($cli / $model)"
 done
 
 nohup python3 "$DIR/watch.py" >> "$MAILDIR/relay.log" 2>&1 &
@@ -110,10 +109,10 @@ echo $! > "$MAILDIR/watch.pid"
 
 cat <<EOF
 
-릴레이 시작됨. 에이전트: ${names[*]}
+릴레이 시작됨. 팀: $TEAM   에이전트: ${names[*]}
 
-세션 확인: tmux ls
-붙기: tmux attach -t <name>   (분리: Ctrl-b d)
+세션 확인: tmux ls | grep "^$TEAM/"
+붙기: tmux attach -t "=$TEAM/<name>"   (분리: Ctrl-b d)
 메일 보내기: scripts/agent-team/send.sh <from> <to1,to2> "<제목>" "<본문>"
 답장:       scripts/agent-team/reply.sh <from> <MSG-id> "<본문>"
 상태 확인:  scripts/agent-team/status.sh

@@ -29,6 +29,65 @@ scripts/agent-team/status.sh      # 메일 스레드 완료 상태
 scripts/agent-team/stop.sh [--kill-sessions]
 ```
 
+## 여러 팀 동시 운용 (멀티 팀)
+
+tmux 세션 이름은 머신 전체에서 하나의 전역 이름공간이라, 아무 조치 없이 서로 다른 저장소에서
+동시에 `start.sh`를 실행하면 `main` 같은 세션 이름이 그대로 충돌한다. (반면 `.agent-mail/`
+자체는 저장소별로 이미 분리돼 있어서 메일함이 섞이는 일은 원래도 없었다.)
+
+그래서 모든 tmux 세션 이름 앞에 **팀 이름**을 접두사로 붙인다(`<팀>/main`, `<팀>/reviewer` 등).
+`TEAM` 환경변수를 안 주면 저장소 폴더명이 자동으로 팀 이름이 된다 — 기존 설치도 업그레이드
+즉시 자동으로 네임스페이스가 적용되고, 메일함 경로(`.agent-mail`)도 그대로라 별도 마이그레이션이
+필요 없다.
+
+- **서로 다른 프로젝트에서 각자 한 팀씩** (가장 흔한 경우): 아무것도 안 해도 된다. 저장소 폴더명이
+  다르면 팀 이름도 자동으로 달라져서 세션이 안 겹친다.
+- **같은 저장소 안에서 팀을 여러 개**: `agent-mail-template`을 팀 이름을 붙인 다른 디렉터리로
+  한 번 더 복사하고, `TEAM` 환경변수로 실행한다.
+
+  ```bash
+  cp -r agent-mail-template <target-repo>/.agent-mail-featureA
+  cd <target-repo>
+  TEAM=featureA scripts/agent-team/start.sh
+  TEAM=featureA scripts/agent-team/dashboard.sh
+  TEAM=featureA scripts/agent-team/stop.sh --kill-sessions
+  ```
+
+  `TEAM=<이름>`일 때 메일함은 `<repo>/.agent-mail-<이름>`을 쓴다(`TEAM`을 안 주는 기본 팀만
+  `.agent-mail`을 그대로 쓴다). 두 팀은 세션 이름과 메일함이 완전히 분리돼 있어서 서로 간섭하지
+  않는다.
+
+**업그레이드 시 주의**: 이미 팀이 떠 있는 상태에서 스크립트만 새 버전으로 덮으면, 실행 중인
+세션은 옛 이름(접두사 없음) 그대로라 `stop.sh --kill-sessions`가 그 세션들을 못 찾는다. 새
+스크립트를 받으면 먼저 `stop.sh --kill-sessions`로 내린 뒤 `start.sh`로 다시 올릴 것.
+
+## 명령어로 등록하기 (`agent-team` CLI)
+
+`scripts/agent-team/send.sh ...`처럼 매번 상대경로를 타이핑하기 번거로우면, 얇은 디스패처를
+PATH에 등록해서 어디서든 `agent-team ...`로 쓸 수 있다.
+
+```bash
+scripts/setup/install-cli.sh   # ~/.local/bin/agent-team 심볼릭 링크 생성
+```
+
+```bash
+agent-team start
+agent-team dashboard
+agent-team status
+agent-team send main reviewer "제목" "본문"
+agent-team reply reviewer MSG-0001 "본문"
+agent-team stop --kill-sessions
+
+# 같은 저장소에 팀이 여러 개면 --team으로 지정
+agent-team --team featureA start
+```
+
+`agent-team`은 실행된 위치(cwd)에서 위로 올라가며 `.agent-mail`(또는 `.agent-mail-<팀>`)을
+찾아 그 팀에게 위임할 뿐인 얇은 래퍼다(git이 `.git`을 찾는 방식과 동일) — CLI 프레임워크가
+아니라 기존 `.sh` 스크립트에 `exec`으로 넘겨주는 30줄짜리 스크립트다. 저장소 폴더 안 어디서
+실행해도 되고, 같은 저장소에 팀이 둘 이상이면 `--team`을 안 줬을 때 어떤 팀들이 있는지 알려주고
+멈춘다. 기존 `scripts/agent-team/*.sh`는 그대로 남아있으니 디스패처 없이 예전처럼 써도 된다.
+
 ## 동작 방식
 
 - `main`이 `send.sh`로 작업을 위임하면 `watch.py`가 2초 폴링으로 감지해 대상 tmux 세션에

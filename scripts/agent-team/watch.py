@@ -3,6 +3,7 @@
 depth 0/1(1회 왕복 이내)만 수신자 tmux 세션에 '메일함 확인' 알림을 주입한다.
 depth 2 이상(답장에 대한 답장)은 자동 배달하지 않고 NEEDS_ATTN을 세운다."""
 
+import os
 import subprocess
 import sys
 import time
@@ -10,6 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib
+
+# start.sh가 TEAM을 export해서 넘겨준다. 없으면(예: watch.py를 단독 실행) 메일함의
+# 상위 디렉터리 이름(대개 저장소 이름)으로 대체한다 - tmux 세션 이름 접두사와 동일한 규칙.
+TEAM = os.environ.get("TEAM") or lib.MAILDIR.parent.name
 
 PROCESSED = lib.MAILDIR / "watch.processed"
 RELAY_LOG = lib.MAILDIR / "relay.log"
@@ -85,15 +90,16 @@ def main():
                         if name not in agents:
                             log(f"{msg_id}: 알 수 없는 수신자 '{name}' (agents.conf에 없음)")
                             continue
+                        session = f"={TEAM}/{name}"
                         ok = tmux_notify(
-                            name,
+                            session,
                             f"[MAIL] {m.sender}로부터 새 메일 도착 ({msg_id}). "
                             f".agent-mail/inbox.md 확인하세요.",
                         )
                         if ok:
-                            log(f"{msg_id} -> {name} 알림 전송 (depth={depth})")
+                            log(f"{msg_id} -> {session} 알림 전송 (depth={depth})")
                         else:
-                            reason = f"{name}에게 tmux send-keys 타임아웃 (자동 배달 실패)"
+                            reason = f"{session}에게 tmux send-keys 타임아웃 (자동 배달 실패)"
                             log(f"{msg_id} {reason}")
                             note_needs_attention(msg_id, reason)
                 processed.add(msg_id)

@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# 얇은 디스패처: 현재 위치(cwd)에서 위로 올라가며 .agent-mail(-<team>) 을 찾아
+# MAILDIR/TEAM을 확정한 뒤, 같은 디렉터리의 기존 *.sh/reply.sh/send.sh에 그대로 위임한다.
+# CLI 프레임워크가 아니다 - 하는 일은 딱 "어느 저장소/팀인지 알아내기 + exec"뿐이다.
+#
+# 설치: scripts/setup/install-cli.sh 를 실행하면 ~/.local/bin/agent-team에 심볼릭 링크가 걸려
+# 어디서든 `agent-team ...`로 쓸 수 있다.
+set -euo pipefail
+
+# ~/.local/bin/agent-team로 심볼릭 링크해서 쓰는 스크립트라, 심볼릭 링크를 실제
+# 경로로 풀지 않으면(readlink -f) 여기 SCRIPT_DIR이 ~/.local/bin이 되어버려 존재하지
+# 않는 start.sh 등을 찾게 된다.
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+usage() {
+  cat <<EOF
+사용법: agent-team [--team <이름>] <명령> [인자...]
+
+명령:
+  start [--kill-sessions 아님, 인자 없음]   팀 세션 기동 (필요 시 자동 온보딩)
+  stop [--kill-sessions]                    watch.py 중지 (+옵션: tmux 세션도 종료)
+  dashboard                                 세션 대시보드 생성
+  status                                    메일 스레드 완료 상태
+  send <from> <to1,to2,...> <제목> <본문>    새 메일
+  reply <from> <MSG-id> <본문>               답장
+
+같은 저장소 안에 팀 메일함(.agent-mail 또는 .agent-mail-<이름>)이 여러 개면
+--team <이름>으로 어느 팀에 말할지 지정해야 한다.
+EOF
+  exit 1
+}
+
+[[ $# -eq 0 ]] && usage
+
+if [[ "${1:-}" == "--team" ]]; then
+  [[ $# -ge 2 ]] || usage
+  export TEAM="$2"
+  shift 2
+fi
+
+cmd="${1:-}"
+[[ -z "$cmd" ]] && usage
+shift || true
+
+# cwd에서 위로 올라가며 .agent-mail 또는 .agent-mail-* 디렉터리를 찾는다 (git이 .git 찾는 방식과 동일).
+dir="$PWD"
+candidates=()
+while :; do
+  for d in "$dir"/.agent-mail "$dir"/.agent-mail-*; do
+    [[ -d "$d" ]] && candidates+=("$d")
+  done
+  if [[ ${#candidates[@]} -gt 0 || "$dir" == "/" ]]; then
+    break
+  fi
+  dir="$(dirname "$dir")"
+done
+
+if [[ ${#candidates[@]} -eq 0 ]]; then
+  echo "이 위치 위쪽에서 .agent-mail 디렉터리를 찾지 못했습니다 (cwd: $PWD)." >&2
+  exit 1
+fi
+
+team_name_of() {
+  local base; base="$(basename "$1")"
+  [[ "$base" == ".agent-mail" ]] && echo "(기본팀)" || echo "${base#.agent-mail-}"
+}
+
+chosen=""
+if [[ -n "${TEAM:-}" ]]; then
+  for c in "${candidates[@]}"; do
+    [[ "$(team_name_of "$c")" == "$TEAM" ]] && chosen="$c"
+  done
+  if [[ -z "$chosen" ]]; then
+    echo "--team $TEAM 에 해당하는 메일함을 못 찾았습니다 (cwd 위쪽: $PWD)." >&2
+    exit 1
+  fi
+elif [[ ${#candidates[@]} -eq 1 ]]; then
+  chosen="${candidates[0]}"
+else
+  names=()
+  for c in "${candidates[@]}"; do names+=("$(team_name_of "$c")"); done
+  echo "이 저장소에 팀이 여러 개 있습니다: ${names[*]}" >&2
+  echo "--team <이름> 으로 지정하세요." >&2
+  exit 1
+fi
+
+# MAILDIR을 직접 확정해서 넘긴다 - send.sh/reply.sh는 TEAM을 모르고 MAILDIR만 보므로,
+# 여기서 TEAM 재조합에 기대지 않고 찾아낸 경로를 그대로 export한다.
+export MAILDIR="$chosen"
+export TEAM="$(team_name_of "$chosen")"
+[[ "$TEAM" == "(기본팀)" ]] && unset TEAM
+
+case "$cmd" in
+  start|stop|dashboard|status|send|reply)
+    exec "$SCRIPT_DIR/$cmd.sh" "$@"
+    ;;
+  *)
+    usage
+    ;;
+esac
