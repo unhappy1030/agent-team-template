@@ -43,18 +43,22 @@ NOTIFY_TIMEOUT = 5
 
 def tmux_notify(session, text):
     """tmux send-keys가 멈춰도(예: 세션에 클라이언트가 여럿 붙어 응답이 안 오는 경우)
-    전체 폴링 루프가 영구히 멈추지 않도록 타임아웃을 건다."""
+    전체 폴링 루프가 영구히 멈추지 않도록 타임아웃을 건다.
+    콜론 없는 '=팀/이름' 형태는 tmux 3.4에서 send-keys 대상 파싱이 깨져 'can't find
+    pane'으로 즉시(타임아웃 없이) 실패한다(dashboard.sh의 set-option과 같은 버그) - 그래서
+    타임아웃뿐 아니라 returncode도 반드시 확인해야 한다. 안 그러면 실패한 알림도 "성공"으로
+    기록돼 에이전트가 메일을 영영 못 받는다."""
     try:
-        subprocess.run(
+        r1 = subprocess.run(
             ["tmux", "send-keys", "-t", session, "-l", text],
             check=False, timeout=NOTIFY_TIMEOUT,
         )
         time.sleep(0.15)
-        subprocess.run(
+        r2 = subprocess.run(
             ["tmux", "send-keys", "-t", session, "Enter"],
             check=False, timeout=NOTIFY_TIMEOUT,
         )
-        return True
+        return r1.returncode == 0 and r2.returncode == 0
     except subprocess.TimeoutExpired:
         return False
 
@@ -90,7 +94,7 @@ def main():
                         if name not in agents:
                             log(f"{msg_id}: 알 수 없는 수신자 '{name}' (agents.conf에 없음)")
                             continue
-                        session = f"={TEAM}/{name}"
+                        session = f"={TEAM}/{name}:"
                         ok = tmux_notify(
                             session,
                             f"[MAIL] {m.sender}로부터 새 메일 도착 ({msg_id}). "
