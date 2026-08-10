@@ -84,7 +84,7 @@ tmux 세션 이름은 머신 전체에서 하나의 전역 이름공간이라, �
 PATH에 등록해서 어디서든 `agent-team ...`로 쓸 수 있다.
 
 ```bash
-scripts/setup/install-cli.sh   # ~/.local/bin/agent-team 심볼릭 링크 생성
+scripts/setup/install-cli.sh   # ~/.local/bin/agent-team, ~/.local/bin/agt 심볼릭 링크 생성
 ```
 
 ```bash
@@ -98,6 +98,8 @@ agent-team stop --kill-sessions
 # 같은 저장소에 팀이 여러 개면 --team으로 지정
 agent-team --team featureA start
 ```
+
+`agt`는 `agent-team`과 완전히 동일한 스크립트를 가리키는 짧은 별칭이다 (`agt start`, `agt --team featureA start`처럼 그대로 대체 가능).
 
 `init`의 반대(팀 메일함을 통째로 삭제)와, 삭제 후 템플릿 상태로 다시 만드는 `reinit`도 있다.
 둘 다 세션이 떠 있으면 먼저 정리하고, 메일 기록·role 파일 커스터마이징이 사라지므로 팀 이름을

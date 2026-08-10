@@ -9,7 +9,8 @@ BIN_DIR="$HOME/.local/bin"
 
 mkdir -p "$BIN_DIR"
 ln -sf "$SCRIPT_DIR/agent-team" "$BIN_DIR/agent-team"
-echo "설치됨: $BIN_DIR/agent-team -> $SCRIPT_DIR/agent-team"
+ln -sf "$SCRIPT_DIR/agent-team" "$BIN_DIR/agt"
+echo "설치됨: $BIN_DIR/agent-team, $BIN_DIR/agt -> $SCRIPT_DIR/agent-team"
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
