@@ -101,6 +101,11 @@ agent-team --team featureA start
 
 `agt`는 `agent-team`과 완전히 동일한 스크립트를 가리키는 짧은 별칭이다 (`agt start`, `agt --team featureA start`처럼 그대로 대체 가능).
 
+`install-cli.sh`는 `~/.tmux.conf`에 `dashboard.sh` 창(overview/에이전트별/mail) 전환용 단축키도
+추가한다(마커 주석으로 중복 추가 방지, 재실행해도 안전): `Alt+0`으로 0번 창 이동(대부분의 개인
+tmux.conf에 이미 있는 `Alt+1~9`의 빠진 자리를 채움), `Ctrl+Alt+←→`로 이전/다음 창 전환(Alt+방향키는
+보통 패널 이동에 이미 쓰여서 겹치지 않게 Ctrl+Alt를 씀).
+
 `init`의 반대(팀 메일함을 통째로 삭제)와, 삭제 후 템플릿 상태로 다시 만드는 `reinit`도 있다.
 둘 다 세션이 떠 있으면 먼저 정리하고, 메일 기록·role 파일 커스터마이징이 사라지므로 팀 이름을
 그대로 입력해야 진행되는 확인 절차를 거친다(`-y`/`--yes`로 건너뛸 수 있음).
