@@ -49,6 +49,16 @@ tmux kill-session -t "=$DASH" 2>/dev/null || true
 first="${running[0]}"
 tmux new-session -d -s "$DASH" -n overview "unset TMUX; tmux attach -t '=$TEAM/$first'"
 
+# window-size=latest(기본값) 때문에 detached로 만든 세션은 "서버에서 가장 최근 클라이언트"의
+# 크기를 물려받는다 (-x/-y 플래그도 이때는 무시된다). 이 스크립트가 pane 안에서 tmux attach를
+# 중첩으로 띄우는 구조라 작은 pane에 붙은 클라이언트가 그대로 남고, 다음 실행이 그 크기를
+# 물려받는 피드백 루프가 생긴다. 1행짜리 좀비 클라이언트가 하나라도 있으면 80x1로 태어나
+# 첫 split-window가 "no space for new pane"으로 실패한다.
+# 레이아웃을 짜는 동안만 크기를 고정하고, 다 만든 뒤 latest로 되돌려 attach 시 터미널에 맞춘다.
+tmux set-option -t "=$DASH:" window-size manual
+tmux set-option -t "=$DASH:" default-size 200x50
+tmux resize-window -t "=$DASH:overview" -x 200 -y 50
+
 for n in "${running[@]:1}"; do
   tmux split-window -t "=$DASH:overview" "unset TMUX; tmux attach -t '=$TEAM/$n'"
   tmux select-layout -t "=$DASH:overview" tiled >/dev/null
@@ -70,6 +80,7 @@ tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 # -t "=$DASH" (콜론 없는 exact-match)는 세션 대상 set-option에서 "no such session"으로
 # 실패하는 tmux 버그가 있다(has-session/kill-session은 멀쩡함). 콜론을 붙이면 정상 동작한다.
 tmux set-option -t "=$DASH:" mouse on
+tmux set-option -t "=$DASH:" window-size latest
 tmux select-window -t "=$DASH:overview"
 
 cat <<EOF
