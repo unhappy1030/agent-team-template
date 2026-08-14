@@ -32,7 +32,7 @@ if [[ "$yes" -ne 1 ]]; then
   fi
 fi
 
-"$DIR/stop.sh" --kill-sessions
+"$DIR/stop.sh"
 
 rm -rf "$MAILDIR"
 echo "삭제됨: $MAILDIR (팀: $TEAM)"

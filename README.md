@@ -43,7 +43,7 @@ cd <target-repo>
 scripts/agent-team/start.sh       # 필요 시 onboard.sh로 컨텍스트 채운 뒤, 4개 tmux 세션 + 메일 감시(watch.py) 시작
 scripts/agent-team/dashboard.sh   # 전체 세션 한눈에 보기 (overview 타일 + 에이전트별 탭 + mail 탭)
 scripts/agent-team/status.sh      # 메일 스레드 완료 상태
-scripts/agent-team/stop.sh [--kill-sessions]
+scripts/agent-team/stop.sh         # watch.py + 이 팀의 tmux 세션(에이전트 전체 + dashboard) 종료
 ```
 
 ## 여러 팀 동시 운용 (멀티 팀)
@@ -67,7 +67,7 @@ tmux 세션 이름은 머신 전체에서 하나의 전역 이름공간이라, �
   cd <target-repo>
   TEAM=featureA scripts/agent-team/start.sh
   TEAM=featureA scripts/agent-team/dashboard.sh
-  TEAM=featureA scripts/agent-team/stop.sh --kill-sessions
+  TEAM=featureA scripts/agent-team/stop.sh
   ```
 
   `TEAM=<이름>`일 때 메일함은 `<repo>/.agent-mail-<이름>`을 쓴다(`TEAM`을 안 주는 기본 팀만
@@ -75,8 +75,8 @@ tmux 세션 이름은 머신 전체에서 하나의 전역 이름공간이라, �
   않는다.
 
 **업그레이드 시 주의**: 이미 팀이 떠 있는 상태에서 스크립트만 새 버전으로 덮으면, 실행 중인
-세션은 옛 이름(접두사 없음) 그대로라 `stop.sh --kill-sessions`가 그 세션들을 못 찾는다. 새
-스크립트를 받으면 먼저 `stop.sh --kill-sessions`로 내린 뒤 `start.sh`로 다시 올릴 것.
+세션은 옛 이름(접두사 없음) 그대로라 `stop.sh`가 그 세션들을 못 찾는다. 새 스크립트를 받으면
+먼저(구버전 스크립트로) `stop.sh`로 내린 뒤 새 스크립트로 `start.sh`를 다시 올릴 것.
 
 ## 명령어로 등록하기 (`agent-team` CLI)
 
@@ -93,7 +93,7 @@ agent-team dashboard
 agent-team status
 agent-team send main reviewer "제목" "본문"
 agent-team reply reviewer MSG-0001 "본문"
-agent-team stop --kill-sessions
+agent-team stop
 
 # 같은 저장소에 팀이 여러 개면 --team으로 지정
 agent-team --team featureA start
@@ -105,6 +105,18 @@ agent-team --team featureA start
 추가한다(마커 주석으로 중복 추가 방지, 재실행해도 안전): `Alt+0`으로 0번 창 이동(대부분의 개인
 tmux.conf에 이미 있는 `Alt+1~9`의 빠진 자리를 채움), `Ctrl+Alt+←→`로 이전/다음 창 전환(Alt+방향키는
 보통 패널 이동에 이미 쓰여서 겹치지 않게 Ctrl+Alt를 씀).
+
+`stop`은 watch.py뿐 아니라 이 팀의 tmux 세션(에이전트 전체 + dashboard가 떠 있으면 그것도)을
+항상 같이 종료한다 — 예전처럼 `--kill-sessions`를 따로 줄 필요는 없다.
+
+`scripts/agent-team/`가 대상 저장소에 복사되어 온 것이라 템플릿 쪽 버그 수정/기능 추가가
+자동으로 반영되지 않는다. `upgrade`는 로컬 템플릿 클론이 있으면 `git pull`한 뒤(없으면 GitHub에서
+받아서) `scripts/agent-team/`만 최신 버전으로 덮어쓴다 — `.agent-mail/roles`, `agents.conf` 같은
+프로젝트별 커스터마이징은 안 건드린다.
+
+```bash
+agent-team upgrade
+```
 
 `init`의 반대(팀 메일함을 통째로 삭제)와, 삭제 후 템플릿 상태로 다시 만드는 `reinit`도 있다.
 둘 다 세션이 떠 있으면 먼저 정리하고, 메일 기록·role 파일 커스터마이징이 사라지므로 팀 이름을

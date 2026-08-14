@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# watch.py를 중지한다. --kill-sessions를 주면 agents.conf에 정의된 tmux 세션도 함께 종료한다.
+# watch.py와 이 팀의 tmux 세션(agents.conf에 정의된 에이전트 전체 + dashboard)을 모두 종료한다.
 
 set -euo pipefail
 
@@ -17,7 +17,7 @@ else
   echo "watch.pid 없음 (실행 중이 아닌 것으로 보임)"
 fi
 
-if [[ "${1:-}" == "--kill-sessions" && -f "$MAILDIR/agents.conf" ]]; then
+if [[ -f "$MAILDIR/agents.conf" ]]; then
   while IFS=: read -r name cli model || [[ -n "$name" ]]; do
     name="$(echo "$name" | xargs)"
     [[ -z "$name" || "$name" == \#* ]] && continue
@@ -25,6 +25,10 @@ if [[ "${1:-}" == "--kill-sessions" && -f "$MAILDIR/agents.conf" ]]; then
       echo "tmux 세션 종료: $TEAM/$name"
     fi
   done < "$MAILDIR/agents.conf"
+fi
+
+if tmux kill-session -t "=$TEAM/dashboard" 2>/dev/null; then
+  echo "tmux 세션 종료: $TEAM/dashboard"
 fi
 
 echo "완료. (팀: $TEAM)"

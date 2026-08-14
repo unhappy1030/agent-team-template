@@ -122,6 +122,6 @@ cat <<EOF
 메일 보내기: scripts/agent-team/send.sh <from> <to1,to2> "<제목>" "<본문>"
 답장:       scripts/agent-team/reply.sh <from> <MSG-id> "<본문>"
 상태 확인:  scripts/agent-team/status.sh
-중지:       scripts/agent-team/stop.sh [--kill-sessions]
+중지:       scripts/agent-team/stop.sh
 로그:       $MAILDIR/relay.log
 EOF
