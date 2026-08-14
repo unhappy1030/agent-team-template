@@ -106,7 +106,13 @@ for i in "${!names[@]}"; do
       ;;
   esac
 
-  tmux new-session -d -s "$TEAM/$name" -c "$REPO_ROOT" -- "${args[@]}"
+  # tmux new-session은 이 순간 start.sh 프로세스의 환경을 세션에 스냅샷으로 물려준다.
+  # REPO_ROOT/TEAM/MAILDIR을 그대로 두면 에이전트 프로세스 자체가 "나는 이 프로젝트"라는
+  # 정보를 안고 태어나서, 나중에 그 세션 안에서 (사람이 시켜서든 스스로든) 다른 프로젝트의
+  # scripts/agent-team/send.sh 등을 실행해도 ${VAR:-...} 소프트 디폴트가 이 상속값을 계속
+  # 우선시해 조용히 원래 팀의 메일함으로 보낸다 (실사고: agent-team-maildir-leak.md).
+  # 에이전트 세션은 이 셋을 몰라야 매번 자기가 실제로 있는 위치 기준으로 새로 계산한다.
+  tmux new-session -d -s "$TEAM/$name" -c "$REPO_ROOT" -- env -u REPO_ROOT -u TEAM -u MAILDIR "${args[@]}"
   echo "tmux 세션 시작: $TEAM/$name ($cli / $model)"
 done
 

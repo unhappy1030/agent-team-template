@@ -110,3 +110,30 @@ scripts/agent-team/send.sh main reviewer "test" "test"
 cat /path/to/B/.agent-mail/inbox.md   # 여기 있어야 정상
 cat /path/to/A/.agent-mail/inbox.md   # 여기 있으면 버그 재현
 ```
+
+## 7. 후속 (2026-08-14): 5번의 개선안 1(가드)만으로는 안 막혔다
+
+5번에서 넣은 가드(`_resolve.sh`가 MAILDIR을 REPO_ROOT 기준 계산값과 비교)는 **MAILDIR만 혼자
+새는 인위적인 경우**만 막는다. 그런데 실제 재발 사례(다른 서버, home 팀을 먼저 start한 뒤 같은
+셸 계통에서 `home/repo/dummy`에 `agt init`/`start`하고 "프로젝트 파악해서 메일 보내줘"라고
+요청)를 그대로 재현해보니, **REPO_ROOT/TEAM/MAILDIR 셋이 항상 같이 새기 때문에** 가드가
+무력화됐다:
+
+- `start.sh`가 `tmux new-session -- claude ...`로 에이전트를 띄우는 순간, tmux는 **그 시점
+  start.sh 프로세스의 환경 전체**를 세션에 스냅샷으로 물려준다 — `_resolve.sh`가 방금 계산해
+  export해둔 REPO_ROOT/TEAM/MAILDIR도 그대로 포함된다.
+- 그 에이전트 세션 안에서 (사람이 시키든 에이전트가 스스로든) 다른 프로젝트의
+  `scripts/agent-team/send.sh`를 실행하면, `send.sh`가 `REPO_ROOT="${REPO_ROOT:-...}"`로
+  **이미 상속된 값을 그대로 신뢰**한다. `_resolve.sh`가 계산하는 "정상값"도 그 잘못된
+  REPO_ROOT 기준으로 계산되므로, MAILDIR도 TEAM도 서로 일관되게 틀려서 **가드가 비교할
+  기준점 자체가 오염돼 있어 통과해버린다.**
+
+**진짜 수정**: 에이전트 세션 자체가 애초에 이 3개 변수를 물려받지 않게 한다. `start.sh`의
+`tmux new-session -- "${args[@]}"`를
+`tmux new-session -- env -u REPO_ROOT -u TEAM -u MAILDIR "${args[@]}"`로 바꿔서, 그 세션의
+최상위 프로세스(`claude`/`agy`) 자체의 `/proc/<pid>/environ`에 이 셋이 아예 없게 만든다.
+실제 tmux로 검증: `env -u`로 감싼 세션의 pane_pid는 REPO_ROOT/TEAM/MAILDIR이 전혀 없고,
+그 안에서 다른 프로젝트의 로컬 `send.sh`를 실행하면 정확히 그 프로젝트로 배달된다.
+
+5번의 2(팀 표시)·3(설정 파일)·4(CLI 플래그)는 여전히 유효한 추가 개선안으로 남아있지만,
+이 인시던트의 실제 재발을 막은 건 "애초에 에이전트가 이 값들을 모르게 하는" 이 수정이다.
