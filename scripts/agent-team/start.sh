@@ -113,15 +113,20 @@ done
 nohup python3 "$DIR/watch.py" >> "$MAILDIR/relay.log" 2>&1 &
 echo $! > "$MAILDIR/watch.pid"
 
+# 대시보드는 있으면 편한 보너스일 뿐이지, 여기서 실패한다고 이미 뜬 에이전트 세션까지
+# 죽일 이유는 없다 (start.sh 전체가 set -e라 그냥 두면 dashboard.sh 실패가 전체를 죽인다).
+"$DIR/dashboard.sh" || echo "⚠ 대시보드 생성 실패 - 에이전트 세션은 정상 기동됐습니다. 나중에 다시: scripts/agent-team/dashboard.sh" >&2
+
 cat <<EOF
 
 릴레이 시작됨. 팀: $TEAM   에이전트: ${names[*]}
 
-세션 확인: tmux ls | grep "^$TEAM/"
-붙기: tmux attach -t "=$TEAM/<name>"   (분리: Ctrl-b d)
-메일 보내기: scripts/agent-team/send.sh <from> <to1,to2> "<제목>" "<본문>"
-답장:       scripts/agent-team/reply.sh <from> <MSG-id> "<본문>"
-상태 확인:  scripts/agent-team/status.sh
-중지:       scripts/agent-team/stop.sh
-로그:       $MAILDIR/relay.log
+세션 확인:     tmux ls | grep "^$TEAM/"
+대시보드 보기: scripts/agent-team/view.sh   (분리: Ctrl-b d)
+개별 세션 붙기: tmux attach -t "=$TEAM/<name>"
+메일 보내기:   scripts/agent-team/send.sh <from> <to1,to2> "<제목>" "<본문>"
+답장:          scripts/agent-team/reply.sh <from> <MSG-id> "<본문>"
+상태 확인:     scripts/agent-team/status.sh
+중지:          scripts/agent-team/stop.sh
+로그:          $MAILDIR/relay.log
 EOF

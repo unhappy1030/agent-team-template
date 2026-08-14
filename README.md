@@ -40,8 +40,9 @@ cp -r agent-mail-template <target-repo>/.agent-mail
 
 ```bash
 cd <target-repo>
-scripts/agent-team/start.sh       # 필요 시 onboard.sh로 컨텍스트 채운 뒤, 4개 tmux 세션 + 메일 감시(watch.py) 시작
-scripts/agent-team/dashboard.sh   # 전체 세션 한눈에 보기 (overview 타일 + 에이전트별 탭 + mail 탭)
+scripts/agent-team/start.sh       # 필요 시 onboard.sh로 컨텍스트 채운 뒤, 4개 tmux 세션 + watch.py + dashboard까지 한 번에 기동
+scripts/agent-team/view.sh        # 대시보드에 바로 attach (tmux attach 직접 안 쳐도 됨)
+scripts/agent-team/dashboard.sh   # 대시보드를 다시 만들어야 할 때 (세션 재기동 등으로 새로 짜야 하면)
 scripts/agent-team/status.sh      # 메일 스레드 완료 상태
 scripts/agent-team/stop.sh         # watch.py + 이 팀의 tmux 세션(에이전트 전체 + dashboard) 종료
 ```
@@ -88,8 +89,9 @@ scripts/setup/install-cli.sh   # ~/.local/bin/agent-team, ~/.local/bin/agt 심�
 ```
 
 ```bash
-agent-team start
-agent-team dashboard
+agent-team start      # dashboard까지 같이 뜬다
+agent-team view       # 대시보드에 바로 attach
+agent-team dashboard  # 대시보드를 새로 짜야 할 때만
 agent-team status
 agent-team send main reviewer "제목" "본문"
 agent-team reply reviewer MSG-0001 "본문"
