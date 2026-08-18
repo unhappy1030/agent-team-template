@@ -113,6 +113,11 @@ for i in "${!names[@]}"; do
   # 우선시해 조용히 원래 팀의 메일함으로 보낸다 (실사고: agent-team-maildir-leak.md).
   # 에이전트 세션은 이 셋을 몰라야 매번 자기가 실제로 있는 위치 기준으로 새로 계산한다.
   tmux new-session -d -s "$TEAM/$name" -c "$REPO_ROOT" -- env -u REPO_ROOT -u TEAM -u MAILDIR "${args[@]}"
+  # 이 세션은 overview pane(작음)과 전용 창(큼) 양쪽에서 동시에 attach된다. 기본값인
+  # window-size=latest는 둘 중 "최근에 활성화된 쪽" 크기를 따라가 버려 전용 창이 overview
+  # pane 크기로 눌리고 남는 공간이 빈 칸으로 남는다. largest로 두면 항상 더 큰 쪽(전용 창)
+  # 크기를 따르고, overview pane은 그 일부만 잘려 보이는 정상적인 동작이 된다.
+  tmux set-option -t "=$TEAM/$name:" window-size largest
   echo "tmux 세션 시작: $TEAM/$name ($cli / $model)"
 done
 

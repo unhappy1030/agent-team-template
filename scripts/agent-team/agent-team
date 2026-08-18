@@ -67,6 +67,12 @@ while :; do
 done
 
 if [[ ${#candidates[@]} -eq 0 ]]; then
+  # upgrade는 .agent-mail(팀 초기화)이 없어도 되는 유일한 명령이다 - scripts/agent-team
+  # 코드만 최신화하는 거라 메일함과 무관하다. cwd를 대상 프로젝트 루트로 본다.
+  if [[ "$cmd" == "upgrade" ]]; then
+    export REPO_ROOT="$PWD"
+    exec "$SCRIPT_DIR/upgrade.sh" "$@"
+  fi
   echo "이 위치 위쪽에서 .agent-mail 디렉터리를 찾지 못했습니다 (cwd: $PWD)." >&2
   exit 1
 fi

@@ -33,6 +33,7 @@ if [[ "$(cd "$TEMPLATE_DIR/scripts/agent-team" && pwd)" == "$DIR" ]]; then
 fi
 
 echo "동기화: $TEMPLATE_DIR/scripts/agent-team -> $DIR"
+mkdir -p "$DIR"
 rsync -a --delete --exclude='__pycache__' "$TEMPLATE_DIR/scripts/agent-team/" "$DIR/"
 chmod +x "$DIR"/*.sh "$DIR/agent-team"
 

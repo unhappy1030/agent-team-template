@@ -81,6 +81,16 @@ tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 # 실패하는 tmux 버그가 있다(has-session/kill-session은 멀쩡함). 콜론을 붙이면 정상 동작한다.
 tmux set-option -t "=$DASH:" mouse on
 tmux set-option -t "=$DASH:" window-size latest
+
+# window-size=latest는 "물리적으로 리사이즈되거나 새로 attach하는 순간"에만 그 클라이언트
+# 크기를 반영한다 - 탭 전환만으로는 재계산되지 않는다. overview는 pane 4개가 동시에 다른
+# 크기로 attach돼 있어 latest가 엉뚱한(작은) 크기에 눌러붙은 채 굳어버리기 쉽다. 그래서
+# attach/resize가 일어날 때마다 overview만 명시적으로 실제 클라이언트 크기로 강제
+# resize-window 후 tiled를 재적용하고, 다시 latest로 돌려놓는 훅을 건다.
+RESYNC='set-option -t "=$DASH:" window-size manual ; resize-window -t "=$DASH:overview" -x "#{client_width}" -y "#{client_height}" ; select-layout -t "=$DASH:overview" tiled ; set-option -t "=$DASH:" window-size latest'
+tmux set-hook -t "=$DASH:" client-attached "$RESYNC"
+tmux set-hook -t "=$DASH:" client-resized "$RESYNC"
+
 tmux select-window -t "=$DASH:overview"
 
 cat <<EOF
