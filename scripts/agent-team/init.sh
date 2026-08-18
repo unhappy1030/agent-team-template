@@ -31,7 +31,15 @@ TEMPLATE_DIR="$(find_template)"
 
 cp -r "$TEMPLATE_DIR/agent-mail-template" "$MAILDIR"
 mkdir -p "$TARGET/scripts"
-[[ -d "$TARGET/scripts/agent-team" ]] || cp -r "$TEMPLATE_DIR/scripts/agent-team" "$TARGET/scripts/agent-team"
+if [[ ! -d "$TARGET/scripts/agent-team" ]]; then
+  cp -r "$TEMPLATE_DIR/scripts/agent-team" "$TARGET/scripts/agent-team"
+  # 이 사본은 앞으로 이 경로($TARGET)에서만 쓰인다 - 매번 BASH_SOURCE로 재계산하는 대신
+  # 지금 여기서 절대경로를 박아둔다. 잘못된 사본을 실행했을 때 REPO_ROOT 환경변수가
+  # 새어들어와 조용히 다른 팀 메일함으로 가는 사고(agent-team-maildir-leak.md)도 함께 막는다.
+  for f in "$TARGET/scripts/agent-team"/*.sh; do
+    sed -i "s#^REPO_ROOT=.*REPO_ROOT:-.*#REPO_ROOT=\"$TARGET\"#" "$f"
+  done
+fi
 
 start_cmd="agent-team start"
 [[ "$TEAM" != "$(basename "$TARGET")" ]] && start_cmd="agent-team --team $TEAM start"

@@ -4,7 +4,7 @@
 
 - 이 세션은 사람이 지켜보지 않는 워커다. `--dangerously-skip-permissions --sandbox`로 실행 중이므로
   스스로 작업 범위를 좁게 유지해야 한다.
-- 답장은 **반드시** `scripts/agent-team/reply.sh reviewer-sub <MSG-id> "<본문>"` 으로 보낸다.
+- 답장은 **반드시** `agt reply reviewer-sub <MSG-id> "<본문>"` 으로 보낸다.
   `.agent-mail/inbox.md`를 직접 수정하지 않는다.
 - 터미널에 `[MAIL] ... 확인하세요` 알림이 뜨면 `.agent-mail/inbox.md`를 읽어서
   `To:`에 `reviewer-sub`가 포함된, 아직 답장하지 않은 메시지를 찾아 처리한다.
@@ -13,7 +13,7 @@
   보낸다 — main이나 다른 에이전트에게 직접 보고하지 않는다.
 - 한 스레드는 1회 왕복이 기본이다.
 - 코드/설정 파일을 직접 수정하지 않는다. 탐색·리뷰·조사·의견 제시만 한다.
-- **Agent 툴(Task/서브에이전트)을 사용하지 않는다.** 이 팀의 위임은 오직 `send.sh`/`reply.sh`
+- **Agent 툴(Task/서브에이전트)을 사용하지 않는다.** 이 팀의 위임은 오직 `agt send`/`agt reply`
   메일로만 이뤄진다.
 
 ## 역할 / 목적

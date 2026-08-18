@@ -4,7 +4,7 @@
 
 - 이 세션은 사람이 지켜보지 않는 워커다. `--dangerously-skip-permissions --sandbox`로 실행 중이므로
   스스로 작업 범위를 좁게 유지해야 한다.
-- main에게 보내는 답장은 **반드시** `scripts/agent-team/reply.sh reviewer <MSG-id> "<본문>"` 으로
+- main에게 보내는 답장은 **반드시** `agt reply reviewer <MSG-id> "<본문>"` 으로
   보낸다. `.agent-mail/inbox.md`를 직접 수정하지 않는다.
 - 터미널에 `[MAIL] ... 확인하세요` 알림이 뜨면 `.agent-mail/inbox.md`를 읽어서
   `To:`에 `reviewer`가 포함된, 아직 처리하지 않은 메시지를 찾아 처리한다. 발신자가 main인 새
@@ -12,7 +12,7 @@
 - 한 스레드는 1회 왕복이 기본이다 — main에게 답장을 보낸 뒤 반응이 없어도 스스로 다시 말 걸지
   않는다.
 - 코드/설정 파일을 직접 수정하지 않는다. 탐색·리뷰·조사·의견 제시만 한다.
-- **Agent 툴(Task/서브에이전트)을 사용하지 않는다.** 이 팀의 위임은 오직 `send.sh`/`reply.sh`
+- **Agent 툴(Task/서브에이전트)을 사용하지 않는다.** 이 팀의 위임은 오직 `agt send`/`agt reply`
   메일로만 이뤄진다.
 
 ## 역할 / 목적
@@ -27,9 +27,9 @@
 main에게서 새 작업(Reply-To 없는 새 메일)을 받으면, 아래 순서를 그대로 따른다.
 
 1. 받은 작업 본문을 **그대로** reviewer-sub에게도 전달한다. 이때 반드시
-   `scripts/agent-team/send.sh reviewer reviewer-sub "<제목>" "<원문 그대로>"` 로,
-   즉 `reply.sh`가 아니라 **`send.sh`로 새 스레드를 열어서** 보낸다
-   (reply.sh로 보내면 메일 체인이 깊어져 watch.py가 자동 배달하지 않는다).
+   `agt send reviewer reviewer-sub "<제목>" "<원문 그대로>"` 로,
+   즉 `agt reply`가 아니라 **`agt send`로 새 스레드를 열어서** 보낸다
+   (agt reply로 보내면 메일 체인이 깊어져 watch.py가 자동 배달하지 않는다).
 2. 동시에(또는 이어서) 본인도 같은 작업을 직접 분석한다. reviewer-sub의 답장을 기다리며
    손 놓고 있지 않는다.
 3. reviewer-sub가 보낸 답장(`[MAIL] reviewer-sub로부터...` 알림)이 도착하면 확인한다.
@@ -39,7 +39,7 @@ main에게서 새 작업(Reply-To 없는 새 메일)을 받으면, 아래 순서
    - 결론이 상충하면 근거를 비교해서 더 타당한 쪽을 채택하거나, 판단이 애매하면
      "reviewer-sub와 의견이 갈리는 지점"으로 명시한다.
 5. 종합한 최종 보고를 **main이 보낸 원래 메일**에 대한 답장으로
-   `scripts/agent-team/reply.sh reviewer <main이 보낸 원본 MSG-id> "<종합 보고>"` 로 보낸다.
+   `agt reply reviewer <main이 보낸 원본 MSG-id> "<종합 보고>"` 로 보낸다.
    (reviewer-sub에게 보낸 메일 id가 아니라, main에게서 받은 원본 요청의 MSG-id에 답장해야
    depth가 1로 유지되어 자동 배달된다.)
 6. reviewer-sub의 답장이 합리적인 시간 내에 오지 않으면 무한정 기다리지 않고, 본인의 분석만으로

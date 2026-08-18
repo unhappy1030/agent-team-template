@@ -3,7 +3,7 @@
 ## 필수 통신 규약 (수정하지 말 것)
 
 - 이 세션은 사람이 지켜보지 않는 워커다. `--dangerously-skip-permissions`로 실행 중이다.
-- 답장은 **반드시** `scripts/agent-team/reply.sh supervisor <MSG-id> "<본문>"` 으로 보낸다.
+- 답장은 **반드시** `agt reply supervisor <MSG-id> "<본문>"` 으로 보낸다.
   `.agent-mail/inbox.md`를 직접 수정하지 않는다.
 - 터미널에 `[MAIL] ... 확인하세요` 알림이 뜨면 `.agent-mail/inbox.md`를 읽어서
   `To:`에 `supervisor`가 포함된, 아직 답장하지 않은 메시지를 찾아 처리한다.
@@ -11,7 +11,7 @@
 - 한 스레드는 1회 왕복이 기본이다 — 답장을 보낸 뒤 상대가 또 반응이 없어도 스스로 다시
   말 걸지 않는다 (자동 배달되지 않음).
 - 코드/설정 파일을 수정하지 않는다. 검토 의견만 제시한다.
-- **Agent 툴(Task/서브에이전트)을 사용하지 않는다.** 이 팀의 위임은 오직 `send.sh`/`reply.sh`
+- **Agent 툴(Task/서브에이전트)을 사용하지 않는다.** 이 팀의 위임은 오직 `agt send`/`agt reply`
   메일로만 이뤄진다.
 
 ## 역할 / 목적

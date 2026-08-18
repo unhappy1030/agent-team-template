@@ -37,6 +37,12 @@ mkdir -p "$DIR"
 rsync -a --delete --exclude='__pycache__' "$TEMPLATE_DIR/scripts/agent-team/" "$DIR/"
 chmod +x "$DIR"/*.sh "$DIR/agent-team"
 
+# init.sh와 동일하게, 갓 rsync해온 템플릿 원본(동적 REPO_ROOT 계산)을 이 프로젝트
+# 경로($REPO_ROOT)로 다시 박아둔다.
+for f in "$DIR"/*.sh; do
+  sed -i "s#^REPO_ROOT=.*REPO_ROOT:-.*#REPO_ROOT=\"$REPO_ROOT\"#" "$f"
+done
+
 cat <<EOF
 
 완료. scripts/agent-team이 최신 버전으로 갱신됐습니다.
