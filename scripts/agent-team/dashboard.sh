@@ -48,6 +48,7 @@ tmux kill-session -t "=$DASH" 2>/dev/null || true
 # overview 창: 전체 세션 타일
 first="${running[0]}"
 tmux new-session -d -s "$DASH" -n overview "unset TMUX; tmux attach -t '=$TEAM/$first'"
+tmux select-pane -t "=$DASH:overview" -T overview
 
 # window-size=latest(기본값) 때문에 detached로 만든 세션은 "서버에서 가장 최근 클라이언트"의
 # 크기를 물려받는다 (-x/-y 플래그도 이때는 무시된다). 이 스크립트가 pane 안에서 tmux attach를
@@ -68,10 +69,16 @@ tmux select-layout -t "=$DASH:overview" tiled >/dev/null
 # 에이전트별 전용 창 (탭으로 전환하며 전체 화면으로 보기)
 for n in "${running[@]}"; do
   tmux new-window -t "=$DASH" -n "$n" "unset TMUX; tmux attach -t '=$TEAM/$n'"
+  # 창을 여는 셸이 뜨자마자(개인 셸 rc의 흔한 관행) OSC로 pane title을 호스트/유저명으로
+  # 한 번 세팅하고 그 뒤로 아무도 안 바꿔서 그 값이 그대로 굳는다. 창 이름(#W)을 쓰는
+  # 기본 테마라면 안 보이는 문제지만, pane title(#T)을 보여주는 테마에서는 상태줄 탭이
+  # 전부 그 문구로 뒤덮인다. 창 이름과 같은 값으로 title을 직접 박아 덮어쓴다.
+  tmux select-pane -t "=$DASH:$n" -T "$n"
 done
 
 # mail 창: relay.log / inbox.md 실시간 tail
 tmux new-window -t "=$DASH" -n mail
+tmux select-pane -t "=$DASH:mail" -T mail
 tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/relay.log'" Enter
 tmux split-window -t "=$DASH:mail" -h
 tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/inbox.md'" Enter
