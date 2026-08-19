@@ -48,7 +48,11 @@ tmux kill-session -t "=$DASH" 2>/dev/null || true
 # overview 창: 전체 세션 타일
 first="${running[0]}"
 tmux new-session -d -s "$DASH" -n overview "unset TMUX; tmux attach -t '=$TEAM/$first'"
-tmux select-pane -t "=$DASH:overview" -T overview
+# #T(활성 pane의 title)를 보여주는 테마에서는 창 하나가 아니라 pane마다 따로 title이
+# 필요하다 - split-window는 매번 새 pane을 활성으로 만들어 활성이 계속 옮겨가므로,
+# 창 전체에 한 번만 title을 걸면 나중에 만들어진(제목 없는) pane으로 밀려나 사라진다.
+# 그래서 pane마다 생성 직후(=활성인 순간) 그 pane이 보여주는 에이전트 이름으로 건다.
+tmux select-pane -t "=$DASH:overview" -T "$first"
 
 # window-size=latest(기본값) 때문에 detached로 만든 세션은 "서버에서 가장 최근 클라이언트"의
 # 크기를 물려받는다 (-x/-y 플래그도 이때는 무시된다). 이 스크립트가 pane 안에서 tmux attach를
@@ -62,6 +66,7 @@ tmux resize-window -t "=$DASH:overview" -x 200 -y 50
 
 for n in "${running[@]:1}"; do
   tmux split-window -t "=$DASH:overview" "unset TMUX; tmux attach -t '=$TEAM/$n'"
+  tmux select-pane -t "=$DASH:overview" -T "$n"
   tmux select-layout -t "=$DASH:overview" tiled >/dev/null
 done
 tmux select-layout -t "=$DASH:overview" tiled >/dev/null
@@ -78,9 +83,10 @@ done
 
 # mail 창: relay.log / inbox.md 실시간 tail
 tmux new-window -t "=$DASH" -n mail
-tmux select-pane -t "=$DASH:mail" -T mail
+tmux select-pane -t "=$DASH:mail" -T relay
 tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/relay.log'" Enter
 tmux split-window -t "=$DASH:mail" -h
+tmux select-pane -t "=$DASH:mail" -T inbox
 tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/inbox.md'" Enter
 tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 
