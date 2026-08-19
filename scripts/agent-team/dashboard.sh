@@ -95,14 +95,15 @@ tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 tmux set-option -t "=$DASH:" mouse on
 tmux set-option -t "=$DASH:" window-size latest
 
-# window-size=latest는 "물리적으로 리사이즈되거나 새로 attach하는 순간"에만 그 클라이언트
-# 크기를 반영한다 - 탭 전환만으로는 재계산되지 않는다. overview는 pane 4개가 동시에 다른
-# 크기로 attach돼 있어 latest가 엉뚱한(작은) 크기에 눌러붙은 채 굳어버리기 쉽다. 그래서
-# attach/resize가 일어날 때마다 overview만 명시적으로 실제 클라이언트 크기로 강제
-# resize-window 후 tiled를 재적용하고, 다시 latest로 돌려놓는 훅을 건다.
-RESYNC='set-option -t "=$DASH:" window-size manual ; resize-window -t "=$DASH:overview" -x "#{client_width}" -y "#{client_height}" ; select-layout -t "=$DASH:overview" tiled ; set-option -t "=$DASH:" window-size latest'
-tmux set-hook -t "=$DASH:" client-attached "$RESYNC"
-tmux set-hook -t "=$DASH:" client-resized "$RESYNC"
+# window-size=latest면 tmux가 현재 창을 클라이언트 크기에 맞추고, 다른 창은 그 창으로
+# 전환하는 순간 맞춰준다(tiled 레이아웃도 비율대로 같이 스케일됨) - 별도 훅 불필요.
+# (예전엔 여기서 resize-window -x "#{client_width}" 훅을 걸었으나, resize-window의
+#  -x/-y는 format을 확장하지 않아 매번 "width invalid"로 실패했고, 훅 안에서 에러가
+#  나면 ';' 체인이 거기서 끊겨 window-size가 manual에 박제된 채 다시는 latest로
+#  안 돌아왔다 - 창들이 생성 당시 크기(mail 3x50 등)에 영구히 눌러붙어 있었고, 그 결과
+#  화면에 "Width invalid" 에러와 tmux의 빈 공간 채움 문자(·)가 그대로 보이던 것이었다.
+#  거기다 $DASH도 단따옴표 안이라 치환 안 되고 tmux 쪽에서 빈 값으로 풀려 =: 세션을
+#  가리키고 있었다 - 즉 애초에 제대로 실행된 적이 없는 코드.)
 
 tmux select-window -t "=$DASH:overview"
 
