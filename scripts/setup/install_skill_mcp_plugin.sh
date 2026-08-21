@@ -4,15 +4,24 @@
 # 그대로 스크립트로 옮긴 것 - 무엇을 설치하는지는 이 파일이 최신 출처(~/.agents/.skill-lock.json,
 # claude mcp list, claude plugin list 실측 결과)다.
 #
-# codegraph 바이너리 자체, graphify(uv tool)처럼 별도 설치 스크립트를 쓰는 도구는 대상 밖이다 -
-# 이미 설치돼 있으면 MCP 서버로만 등록한다.
+# codegraph는 이 스크립트가 직접 설치/업그레이드한 뒤 MCP 서버로 등록한다.
+# graphify(uv tool)처럼 별도 설치 스크립트를 쓰는 도구는 여전히 대상 밖이다.
 
 set -euo pipefail
 
 command -v npx >/dev/null || { echo "npx가 필요합니다 (Node.js 설치 필요)" >&2; exit 1; }
+command -v curl >/dev/null || { echo "curl이 필요합니다" >&2; exit 1; }
 command -v claude >/dev/null || { echo "claude CLI가 필요합니다: npm install -g @anthropic-ai/claude-code" >&2; exit 1; }
 
-echo "== 1/3 MCP 서버 (codegraph, playwright) =="
+echo "== 1/3 codegraph + MCP 서버 (codegraph, playwright) =="
+
+export PATH="$HOME/.local/bin:$PATH"
+if command -v codegraph >/dev/null; then
+  codegraph upgrade || echo "  codegraph upgrade 실패 - 기존 버전으로 계속"
+else
+  curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+fi
+CODEGRAPH_BIN="$(command -v codegraph || true)"
 
 add_mcp_claude() {
   local name="$1"; shift
@@ -23,31 +32,20 @@ add_mcp_claude() {
   fi
 }
 
-CODEGRAPH_BIN="$(command -v codegraph || true)"
+# agy는 ~/.gemini/config/mcp_config.json을 읽는데, `agy mcp add`가 그 파일을 갱신해준다
+# (있으면 덮어씀). agy가 없으면 이 등록만 건너뛴다.
+add_mcp_agy() {
+  command -v agy >/dev/null || return 0
+  local name="$1"; shift
+  agy mcp add "$name" -- "$@" >/dev/null && echo "  agy: $name 등록"
+}
+
 if [[ -n "$CODEGRAPH_BIN" ]]; then
   add_mcp_claude codegraph "$CODEGRAPH_BIN" serve --mcp
-else
-  echo "  codegraph 바이너리 없음 - claude 등록 건너뜀 (codegraph 자체는 이 스크립트 대상 밖)"
+  add_mcp_agy codegraph "$CODEGRAPH_BIN" serve --mcp
 fi
 add_mcp_claude playwright npx -y @playwright/mcp@latest
-
-GEMINI_MCP="$HOME/.gemini/config/mcp_config.json"
-mkdir -p "$(dirname "$GEMINI_MCP")"
-CODEGRAPH_BIN="$CODEGRAPH_BIN" python3 - "$GEMINI_MCP" <<'PYEOF'
-import json, os, sys
-
-path = sys.argv[1]
-cfg = json.load(open(path)) if os.path.exists(path) else {}
-servers = cfg.setdefault("mcpServers", {})
-
-codegraph_bin = os.environ.get("CODEGRAPH_BIN") or ""
-if codegraph_bin:
-    servers["codegraph"] = {"command": codegraph_bin, "args": ["serve", "--mcp"]}
-servers["playwright"] = {"command": "npx", "args": ["-y", "@playwright/mcp@latest"]}
-
-json.dump(cfg, open(path, "w"), indent=2, ensure_ascii=False)
-print(f"  antigravity: {path} 갱신")
-PYEOF
+add_mcp_agy playwright npx -y @playwright/mcp@latest
 
 echo
 echo "== 2/3 스킬 (npx skills add) =="

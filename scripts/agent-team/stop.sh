@@ -31,4 +31,7 @@ if tmux kill-session -t "=$TEAM/dashboard" 2>/dev/null; then
   echo "tmux 세션 종료: $TEAM/dashboard"
 fi
 
+# context.md는 일부러 안 지운다 - 다음 start.sh에서 이어받을지 사람에게 묻는 근거가 된다.
+[[ -s "$MAILDIR/context.md" ]] && echo "작업 컨텍스트 남김: $MAILDIR/context.md (다음 start에서 이어받을지 물어봅니다)"
+
 echo "완료. (팀: $TEAM)"

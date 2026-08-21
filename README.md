@@ -4,6 +4,21 @@ tmux + 파일 메일함(`inbox.md`) 기반 4인 에이전트 팀 템플릿: `mai
 `supervisor`(opus, 온디맨드 자문) / `reviewer`+`reviewer-sub`(gemini, 코드리뷰·탐색·조사, sub는
 reviewer가 내부적으로 위임해 종합).
 
+## 한 번에 설치 (새 머신)
+
+```bash
+./setup.sh
+```
+
+Node.js(없으면 nvm으로 설치) → claude CLI → agy(antigravity) 업데이트 → `agent-team`/`agt` 명령
+등록 → codegraph 설치 + MCP 서버 등록 + 스킬 + 플러그인까지 한 번에 처리한다. 필요한 건 `curl`
+뿐이고 sudo는 안 쓴다(nvm이 `~/.nvm`에 깐다). 재실행하면 그대로 업데이트 스크립트가 된다
+(`npm install -g @anthropic-ai/claude-code@latest`, `agy update`, `codegraph upgrade`).
+
+agy만은 자동 설치가 안 된다 — https://antigravity.google 에서 설치하고 `agy install`을 한 번
+실행한 뒤 `./setup.sh`를 (다시) 돌리면 agy용 MCP/스킬 등록까지 끝난다. 그 전까지는 agy 관련
+단계만 건너뛰고 나머지는 정상 설치된다.
+
 ## 새 프로젝트에 설치
 
 가장 쉬운 방법은 전역 `agent-team` 명령을 한 번 설치해두고, 프로젝트마다 `init`만
@@ -156,6 +171,36 @@ agent-team reset -y
   send-keys`가 멈출 수 있어, `watch.py`는 알림 전송에 5초 타임아웃을 두고 실패 시
   `NEEDS_ATTN`에 기록한다.
 
+## 작업 컨텍스트 이어받기 (context.md)
+
+`main`은 진행 중인 작업 상태를 `.agent-mail/context.md`에 계속 갱신한다(무엇을 하는 중인지,
+끝난 것/다음 할 것, 내린 결정과 이유, 관련 파일). `stop`은 이 파일을 지우지 않으므로, 팀을
+껐다 켜도 하던 작업을 이어갈 수 있다.
+
+다음 `start`에서 이 파일이 비어있지 않으면 앞부분을 보여주고 물어본다:
+
+```
+이전 세션의 작업 컨텍스트가 있습니다: /repo/.agent-mail/context.md
+----------------------------------------
+## 진행중
+- setup.sh에 Node 설치 단계 추가
+- 다음: README 갱신
+----------------------------------------
+main이 이 컨텍스트를 이어받게 할까요? [Y/n]
+```
+
+- **Y**(기본): main의 role 맨 뒤에 "이전 세션 이어받기" 지시가 붙어서, 뜨자마자 context.md를
+  읽고 진행 상황을 요약한 뒤 이어서 할지 사람에게 확인한다.
+- **n**: 이어받지 않고 새로 시작한다. 이전 내용은 `context.md.bak`으로 옮겨둔다.
+- 비대화형 실행(`-t 0` 아님)에서는 묻지 않고 그냥 새로 시작한다.
+- 작업이 끝나면 main이 파일을 비우므로(`: > .agent-mail/context.md`) 다음 start에서는 질문이
+  뜨지 않는다.
+
+기존에 설치해둔 프로젝트는 `agent-team upgrade`로 스크립트만 새로 받는다 — role 파일은
+프로젝트별 커스터마이징이라 안 덮어쓰므로, main이 context.md를 쓰게 하려면
+`agent-mail-template/roles/main.md`의 "작업 컨텍스트 유지" 절을 그 프로젝트의
+`.agent-mail/roles/main.md`에 직접 복사해 넣어야 한다.
+
 ## agents.conf 포맷
 
 `name:cli:model`, `cli`는 `claude` 또는 `antigravity`. `main`만 사람이 승인 모드로 붙고
@@ -163,9 +208,13 @@ agent-team reset -y
 
 ## CLI 설치
 
+`./setup.sh`가 아래를 대신 해준다 (agy만 수동).
+
 - **claude (Claude Code)**: `npm install -g @anthropic-ai/claude-code`
 - **antigravity (agy)**: https://antigravity.google 에서 설치. 설치 후 `agy install`로
   PATH/셸 설정.
+- **codegraph**: `curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh`
+  (이미 있으면 `codegraph upgrade`)
 
 ## MCP 서버 설정
 
@@ -174,21 +223,13 @@ agent-team reset -y
 | CLI | 명령 | 설정 파일 |
 |---|---|---|
 | claude | `claude mcp add <name> -- <command> [args...]` | `~/.claude.json` (자동 관리) |
-| agy | 직접 JSON 편집 | `~/.gemini/config/mcp_config.json` |
+| agy | `agy mcp add <name> -- <command> [args...]` | `~/.gemini/config/mcp_config.json` (자동 관리) |
 
 agy 쪽은 `~/.gemini/antigravity/mcp_config.json`처럼 그럴듯해 보이는 다른 경로가 여럿
 있지만(스키마 파일은 `.antigravity-ide-server`에 있음) **실제로 읽는 건 `~/.gemini/config/
-mcp_config.json` 하나뿐**이다 (실측 확인, 2026-08). 포맷은 Claude Desktop과 동일한
-`mcpServers` 객체:
-
-```json
-{
-  "mcpServers": {
-    "codegraph": { "command": "/path/to/codegraph", "args": ["serve", "--mcp"] },
-    "playwright": { "command": "npx", "args": ["-y", "@playwright/mcp@latest"] }
-  }
-}
-```
+mcp_config.json` 하나뿐**이다 (실측 확인, 2026-08). `agy mcp add`가 이 파일을 갱신해주므로
+직접 편집할 일은 없다 — 커맨드에 `-` 로 시작하는 인자(`--mcp` 등)가 있으면 이름 뒤에 `--`를
+꼭 붙여야 한다.
 
 이 파일 하나면 agy·claude 양쪽 다 커버되지 않는다 — **claude는 별도로
 `claude mcp add`가 필요하다.** 둘 다 등록해야 두 CLI 모두에서 같은 MCP 서버를 쓸 수 있다.
@@ -197,7 +238,9 @@ mcp_config.json` 하나뿐**이다 (실측 확인, 2026-08). 포맷은 Claude De
 
 ## 스킬(Skill) 설정
 
-[skills CLI](https://skills.sh) (`npx skills`)로 두 CLI에 한 번에 설치한다:
+`./setup.sh`(내부적으로 `scripts/setup/install_skill_mcp_plugin.sh`)가 지금 쓰는 스킬 목록을
+그대로 설치하고 아래 동기화까지 해준다. 개별로 추가할 때는 [skills CLI](https://skills.sh)
+(`npx skills`)로 두 CLI에 한 번에 설치한다:
 
 ```bash
 npx skills add <owner>/<repo> -g -a claude-code antigravity-cli -y

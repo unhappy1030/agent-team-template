@@ -70,6 +70,29 @@ for name in "${names[@]}"; do
   fi
 done
 
+# 이전 세션에서 main이 남긴 작업 컨텍스트(context.md)를 이어받을지 사람에게 묻는다.
+# stop.sh는 세션만 죽일 뿐 이 파일은 남기므로, 껐다 켜도 여기서 이어붙일 수 있다.
+resume_context=0
+CONTEXT="$MAILDIR/context.md"
+if [[ -s "$CONTEXT" ]] && printf '%s\n' "${names[@]}" | grep -qx main; then
+  if [[ -t 0 ]]; then
+    echo "이전 세션의 작업 컨텍스트가 있습니다: $CONTEXT"
+    echo "----------------------------------------"
+    head -15 "$CONTEXT"
+    echo "----------------------------------------"
+    read -r -p "main이 이 컨텍스트를 이어받게 할까요? [Y/n] " _ans
+    if [[ "$_ans" =~ ^[Nn] ]]; then
+      mv "$CONTEXT" "$CONTEXT.bak"
+      echo "새로 시작합니다 (이전 내용은 $CONTEXT.bak 에 보관)."
+    else
+      resume_context=1
+    fi
+    echo
+  else
+    echo "이전 컨텍스트가 있지만 비대화형 실행이라 이어받지 않습니다: $CONTEXT"
+  fi
+fi
+
 : > "$MAILDIR/relay.log"
 rm -f "$MAILDIR/NEEDS_ATTN"
 # watch.processed는 inbox.md와 짝을 이루는 "이미 알림 보낸 메일" 기록이다. inbox.md는
@@ -82,10 +105,19 @@ for i in "${!names[@]}"; do
   name="${names[$i]}"
   cli="${clis[$i]}"
   model="${models[$i]}"
-  # role 파일 원문에는 항상 ".agent-mail/inbox.md"로 적혀 있다 (템플릿 고정 문구).
+  # role 파일 원문에는 항상 ".agent-mail/..."로 적혀 있다 (템플릿 고정 문구).
   # TEAM이 기본값이 아니면 실제 메일함은 .agent-mail-$TEAM/ 이므로, 세션에 넘기기 전에
-  # 실제 MAILDIR 이름으로 치환해서 에이전트가 엉뚱한(다른 팀의) inbox.md를 보지 않게 한다.
-  role_content="$(sed "s#\.agent-mail/inbox\.md#$(basename "$MAILDIR")/inbox.md#g" "$MAILDIR/roles/$name.md")"
+  # 실제 MAILDIR 이름으로 치환해서 에이전트가 엉뚱한(다른 팀의) 메일함을 보지 않게 한다.
+  role_content="$(sed "s#\.agent-mail/#$(basename "$MAILDIR")/#g" "$MAILDIR/roles/$name.md")"
+
+  if [[ "$name" == "main" && "$resume_context" -eq 1 ]]; then
+    role_content+="
+
+## 이전 세션 이어받기
+
+시작하자마자 \`$(basename "$MAILDIR")/context.md\`를 읽고, 어디까지 진행됐는지 3줄 이내로
+요약해 사람에게 보여준 뒤 이어서 진행할지 확인한다."
+  fi
 
   case "$cli" in
     claude)
