@@ -16,8 +16,10 @@ if ! command -v npm >/dev/null; then
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
   [[ -s "$NVM_DIR/nvm.sh" ]] || curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
   # shellcheck disable=SC1091
+  set +u
   . "$NVM_DIR/nvm.sh"
   command -v npm >/dev/null || nvm use --lts >/dev/null 2>&1 || nvm install --lts
+  set -u
   command -v npm >/dev/null || { echo "Node.js 설치 실패 - https://nodejs.org 에서 직접 설치하세요" >&2; exit 1; }
   echo "  node $(node -v) / npm $(npm -v) (새 셸에서도 쓰려면 터미널을 다시 열 것)"
 else
