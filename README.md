@@ -242,6 +242,12 @@ codex 워커만 샌드박스 없이 도는 이유: codex 샌드박스(`-a never 
 RTM_NEWADDR`)에서는 워커의 셸 명령이 전부 막혀 `agt reply`조차 못 한다 — 그 상태면 워커가 그냥
 죽은 세션이다. bwrap이 정상 동작하는 머신이면 start.sh의 그 줄을 샌드박스 쪽으로 바꿔 쓰는 게 낫다.
 
+codex **main**도 같은 이유로 `-s danger-full-access -a on-request`로 뜬다(샌드박스 없음, 승인은
+모델이 위험하다고 판단한 것만). 샌드박스가 깨진 머신에서 수동 승인 모드로 두면 `ls` 하나에도
+권한 상승 승인 창이 뜨는데, codex는 승인 창 직전에 입력 버퍼를 비우다가 1초 안에 안 비면
+`timed out discarding buffered terminal input`으로 죽는다 — `agt view`로 실제 터미널이 붙어 있으면
+마우스/포커스 이벤트가 계속 들어와서 main-gpt가 실제로 이렇게 죽었다.
+
 codex는 model 칸을 `<모델>-<추론강도>`로 적는다(예: `gpt-5.6-sol-high`, `gpt-5.6-luna-xhigh`).
 강도는 `minimal/low/medium/high/xhigh/max/ultra/persistent`이고, start.sh가 뒤쪽 강도를 떼어
 `-c model_reasoning_effort=`로 넘긴다 — 슬러그에 강도를 붙인 채 보내면 ChatGPT 계정에서

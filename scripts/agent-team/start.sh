@@ -168,7 +168,16 @@ for i in "${!names[@]}"; do
       # 커널(라즈베리파이 등: "loopback: Failed RTM_NEWADDR")에서는 워커의 셸 명령이 전부 막혀
       # agt reply조차 못 한다 - 그 상태의 워커는 그냥 죽은 세션이다.
       # ponytail: 샌드박스 없이 감. bwrap이 도는 머신이면 위 두 플래그로 바꿔 쓰는 게 낫다.
-      [[ "$name" != main* ]] && args+=(--dangerously-bypass-approvals-and-sandbox)
+      if [[ "$name" != main* ]]; then
+        args+=(--dangerously-bypass-approvals-and-sandbox)
+      else
+        # main도 같은 이유로 샌드박스를 끈다. 샌드박스가 깨진 머신에선 ls 하나에도 권한 상승
+        # 승인 창이 뜨는데, codex는 승인 창 직전에 입력 버퍼를 비우다 1초 안에 안 비면
+        # "timed out discarding buffered terminal input"으로 죽는다 (agt view로 실제 터미널이
+        # 붙어 있으면 마우스/포커스 이벤트가 계속 들어와 실제로 main-gpt가 이렇게 죽었다).
+        # 승인은 on-request로 남겨 모델이 위험하다고 판단한 것만 사람에게 묻게 한다.
+        args+=(-s danger-full-access -a on-request)
+      fi
       args+=("$role_content")
       ;;
     *)
