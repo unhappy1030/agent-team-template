@@ -65,21 +65,43 @@ if [[ -n "$TEMPLATE" ]]; then
 elif [[ ${#tpls[@]} -eq 1 || ! -t 0 ]]; then
   TPL="${tpls[0]}"
 else
-  echo "팀 구성 템플릿을 고르세요:"
-  for d in "${tpls[@]}"; do
-    # 주석/빈 줄 뺀 agents.conf 본문이 곧 팀 구성이라, 그대로 보여주면 설명이 필요 없다.
-    echo "  [$(tpl_name_of "$d")]"
-    grep -v -e '^#' -e '^[[:space:]]*$' "$d/agents.conf" | sed 's/^/      /'
+  # ↑↓ + 엔터로 고른다. 템플릿이 늘어나도 위 glob이 알아서 목록에 넣으므로 여기는 안 고쳐도 된다.
+  # 한 항목당 "이름 + 멤버" 두 줄씩 그리고, 매번 그만큼 커서를 올려서 같은 자리에 다시 그린다.
+  # 주석/빈 줄 뺀 agents.conf 본문이 곧 팀 구성이라, 그대로 보여주면 설명이 필요 없다.
+  cur=0
+  rows=$(( ${#tpls[@]} * 2 ))
+  # 한 줄이라도 터미널 폭을 넘겨 접히면 커서 되감기(\e[NA) 줄 수가 어긋나 잔상이 남는다. 잘라서 막는다.
+  cols=$(tput cols 2>/dev/null || echo 80); (( cols > 20 )) || cols=80
+  printf '팀 구성 템플릿을 고르세요 (↑↓ 이동, 엔터 선택):\n'
+  printf '\e[?25l'   # 커서 숨김 - 종료 경로마다 반드시 되돌린다
+  trap 'printf "\e[?25h"' EXIT
+  while :; do
+    for i in "${!tpls[@]}"; do
+      members="$(grep -v -e '^#' -e '^[[:space:]]*$' "${tpls[$i]}/agents.conf" | tr -d ' ' | paste -sd' ' - | cut -c "1-$(( cols - 6 ))")"
+      if [[ $i -eq $cur ]]; then
+        printf '\e[K\e[7m › %s \e[0m\n\e[K     %s\n' "$(tpl_name_of "${tpls[$i]}")" "$members"
+      else
+        printf '\e[K   %s\n\e[K\n' "$(tpl_name_of "${tpls[$i]}")"
+      fi
+    done
+    IFS= read -rsn1 key </dev/tty || { echo "선택 안 됨" >&2; exit 1; }
+    case "$key" in
+      # 방향키는 ESC [ A/B 3바이트로 온다. 타임아웃을 둬야 순수 ESC 입력에 안 걸린다.
+      $'\e') read -rsn2 -t 0.1 key </dev/tty || true
+             case "$key" in
+               '[A') cur=$(( cur > 0 ? cur - 1 : ${#tpls[@]} - 1 )) ;;
+               '[B') cur=$(( (cur + 1) % ${#tpls[@]} )) ;;
+             esac ;;
+      k) cur=$(( cur > 0 ? cur - 1 : ${#tpls[@]} - 1 )) ;;
+      j) cur=$(( (cur + 1) % ${#tpls[@]} )) ;;
+      q) echo "취소됨" >&2; exit 1 ;;
+      '') break ;;   # 엔터
+    esac
+    printf '\e[%dA' "$rows"
   done
-  echo
-  PS3="번호 선택: "
-  _names=(); for d in "${tpls[@]}"; do _names+=("$(tpl_name_of "$d")"); done
-  select choice in "${_names[@]}"; do
-    [[ -n "${choice:-}" ]] || continue
-    for d in "${tpls[@]}"; do [[ "$(tpl_name_of "$d")" == "$choice" ]] && TPL="$d"; done
-    break
-  done
-  [[ -n "$TPL" ]] || { echo "선택 안 됨" >&2; exit 1; }
+  printf '\e[?25h'
+  trap - EXIT
+  TPL="${tpls[$cur]}"
 fi
 
 cp -r "$TPL" "$MAILDIR"
