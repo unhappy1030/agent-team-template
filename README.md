@@ -7,6 +7,7 @@ tmux + 파일 메일함(`inbox.md`) 기반 에이전트 팀 템플릿. 팀 구�
 |---|---|
 | `default` (4인) | `main`(sonnet, 사람 대화+구현) / `supervisor`(opus, 온디맨드 자문) / `reviewer`+`reviewer-sub`(gemini, 코드리뷰·탐색·조사) |
 | `gpt` (6인) | `main`(gpt-5.6-sol, 사람 대화+판단) / `code-edit`(gpt-5.6-luna, 구현 전담) / `supervisor`(opus) / `reviewer`(sonnet) + `sub-reviewer1`,`sub-reviewer2`(gemini) |
+| `dual-main` (6인) | `main-gpt`(gpt-5.6-sol, 평소 main) / `main-claude`(opus, 평소 자문 → gpt 토큰 소진 시 main 인계) / `code1`(gpt-5.6-luna) + `code2`(sonnet, 구현) / `reviewer1`,`reviewer2`(gemini, 리뷰·검색·구조 파악, 각자 독립 답장) |
 
 템플릿을 더 만들려면 `agent-mail-template-<이름>/` 디렉터리를 하나 더 두면 된다
 (`agents.conf` + `roles/<에이전트>.md`). `init`이 자동으로 목록에 넣는다.
@@ -208,6 +209,27 @@ main이 이 컨텍스트를 이어받게 할까요? [Y/n]
 프로젝트별 커스터마이징이라 안 덮어쓰므로, main이 context.md를 쓰게 하려면
 `agent-mail-template/roles/main.md`의 "작업 컨텍스트 유지" 절을 그 프로젝트의
 `.agent-mail/roles/main.md`에 직접 복사해 넣어야 한다.
+
+## main 인계 (`dual-main` 템플릿)
+
+`main-gpt`의 ChatGPT 토큰이 떨어지면 `main-claude`가 main을 이어받는다. 자동 감지는 없다 —
+사람이 main-claude 세션에 가서 "인계받아"라고 말하면 된다. 그러면 main-claude가:
+
+1. `.agent-mail/handoff`에 `main-gpt main-claude` 한 줄을 쓴다. watch.py는 이 파일이 있으면
+   `To: main-gpt` 메일 알림을 main-claude 세션으로 돌린다 — 인계 전에 main-gpt가 보낸 위임의
+   답장은 여전히 main-gpt 앞으로 오기 때문에, 이게 없으면 멈춘 세션에서 조용히 묻힌다.
+2. `context.md` + `inbox.md` + `git diff`로 상황을 파악해 5줄로 요약하고 확인받은 뒤 이어간다.
+
+인계가 되려면 **main-gpt가 context.md를 평소에 계속 갱신해야 한다** (토큰은 예고 없이 끊기므로
+끊기기 직전 정리는 불가능). 그래서 main-gpt role은 새 요청/위임 발송·답장 수신/결정/단계 완료 때마다
+즉시 덮어쓰게 되어 있다. 되돌릴 때는 main-claude에게 "gpt로 돌려" → handoff 파일 삭제 +
+context.md 갱신 → main-gpt 세션에서 context.md를 읽게 하면 된다. `agt start`는 handoff 파일을
+지우므로 새로 띄우면 항상 main-gpt가 main이다.
+
+`main`으로 시작하는 이름(`main`, `main-gpt`, `main-claude`)은 모두 사람이 붙는 세션으로 취급해
+승인 모드로 뜬다. claude main은 `--allowedTools "Bash(agt *)"`로 팀 메일만 미리 허용한다 —
+main-claude는 평소 사람이 안 보는 채로 자문 답장을 보내야 해서, 이게 없으면 `agt reply` 승인
+대기에서 멈춘다.
 
 ## agents.conf 포맷
 

@@ -74,13 +74,13 @@ done
 # stop.sh는 세션만 죽일 뿐 이 파일은 남기므로, 껐다 켜도 여기서 이어붙일 수 있다.
 resume_context=0
 CONTEXT="$MAILDIR/context.md"
-if [[ -s "$CONTEXT" ]] && printf '%s\n' "${names[@]}" | grep -qx main; then
+if [[ -s "$CONTEXT" ]] && printf '%s\n' "${names[@]}" | grep -q '^main'; then
   if [[ -t 0 ]]; then
     echo "이전 세션의 작업 컨텍스트가 있습니다: $CONTEXT"
     echo "----------------------------------------"
     head -15 "$CONTEXT"
     echo "----------------------------------------"
-    read -r -p "main이 이 컨텍스트를 이어받게 할까요? [Y/n] " _ans
+    read -r -p "main이 이 컨텍스트를 이어받게 할까요? (main이 여럿이면 agents.conf 첫 번째) [Y/n] " _ans
     if [[ "$_ans" =~ ^[Nn] ]]; then
       mv "$CONTEXT" "$CONTEXT.bak"
       echo "새로 시작합니다 (이전 내용은 $CONTEXT.bak 에 보관)."
@@ -94,7 +94,7 @@ if [[ -s "$CONTEXT" ]] && printf '%s\n' "${names[@]}" | grep -qx main; then
 fi
 
 : > "$MAILDIR/relay.log"
-rm -f "$MAILDIR/NEEDS_ATTN"
+rm -f "$MAILDIR/NEEDS_ATTN" "$MAILDIR/handoff"
 # watch.processed는 inbox.md와 짝을 이루는 "이미 알림 보낸 메일" 기록이다. inbox.md는
 # 재시작해도 지우지 않으므로(메일 이력 유지), watch.processed도 여기서 지우면 안 된다 -
 # 지우면 다음 watch.py가 inbox.md에 쌓인 과거 메일 전체를 새 메일로 오인해 전부 재알림한다.
@@ -121,7 +121,8 @@ for i in "${!names[@]}"; do
   # 실제 MAILDIR 이름으로 치환해서 에이전트가 엉뚱한(다른 팀의) 메일함을 보지 않게 한다.
   role_content="$(sed "s#\.agent-mail/#$(basename "$MAILDIR")/#g" "$MAILDIR/roles/$name.md")"
 
-  if [[ "$name" == "main" && "$resume_context" -eq 1 ]]; then
+  if [[ "$name" == main* && "$resume_context" -eq 1 ]]; then
+    resume_context=0   # main이 여럿(main-gpt/main-claude)이면 첫 번째에게만 붙인다
     role_content+="
 
 ## 이전 세션 이어받기
@@ -132,13 +133,20 @@ for i in "${!names[@]}"; do
 
   case "$cli" in
     claude)
-      args=(claude --model "$model")
-      [[ "$name" != "main" ]] && args+=(--dangerously-skip-permissions)
-      args+=("$role_content")
+      if [[ "$name" != main* ]]; then
+        args=(claude --dangerously-skip-permissions)
+      else
+        # 사람이 붙는 세션이라 승인 모드로 두되, 팀 메일(agt)만은 미리 허용한다. main-claude처럼
+        # 평소엔 사람이 안 보는 상태로 자문 답장만 하는 main이 agt reply 승인 대기에 묶이지 않게.
+        # --allowedTools는 가변 인자라 바로 뒤의 위치 인자(role 프롬프트)까지 삼킨다 - 그래서
+        # 뒤에 --model이 오도록 맨 앞에 둔다.
+        args=(claude --allowedTools "Bash(agt *)")
+      fi
+      args+=(--model "$model" "$role_content")
       ;;
     antigravity)
       args=(agy --model "$model")
-      if [[ "$name" != "main" ]]; then
+      if [[ "$name" != main* ]]; then
         args+=(--dangerously-skip-permissions --sandbox)
       fi
       args+=(-i "$role_content")
@@ -160,7 +168,7 @@ for i in "${!names[@]}"; do
       # 커널(라즈베리파이 등: "loopback: Failed RTM_NEWADDR")에서는 워커의 셸 명령이 전부 막혀
       # agt reply조차 못 한다 - 그 상태의 워커는 그냥 죽은 세션이다.
       # ponytail: 샌드박스 없이 감. bwrap이 도는 머신이면 위 두 플래그로 바꿔 쓰는 게 낫다.
-      [[ "$name" != "main" ]] && args+=(--dangerously-bypass-approvals-and-sandbox)
+      [[ "$name" != main* ]] && args+=(--dangerously-bypass-approvals-and-sandbox)
       args+=("$role_content")
       ;;
     *)

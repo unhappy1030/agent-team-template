@@ -63,6 +63,21 @@ def tmux_notify(session, text):
         return False
 
 
+HANDOFF = lib.MAILDIR / "handoff"
+
+
+def load_handoff():
+    """handoff 파일("<원래 수신자> <대신 받을 에이전트>" 한 줄)이 있으면 그 쌍을 돌려준다.
+    main-gpt가 토큰 소진으로 멈추고 main-claude가 인계받은 경우처럼, 이미 보낸 메일에 대한
+    답장은 reply.py가 원래 발신자(main-gpt) 앞으로 쓰므로 알림을 인계자 세션으로 돌려야
+    죽은 세션에서 조용히 묻히지 않는다. 메일 내용(To:)은 그대로 두고 알림만 돌린다."""
+    try:
+        parts = HANDOFF.read_text().split()
+    except FileNotFoundError:
+        return None
+    return (parts[0], parts[1]) if len(parts) >= 2 else None
+
+
 def note_needs_attention(msg_id, reason):
     with open(NEEDS_ATTN, "a") as f:
         f.write(f"{msg_id}: {reason}\n")
@@ -79,6 +94,7 @@ def main():
         messages = lib.parse_inbox(text)
         by_id = {m.id: m for m in messages}
         agents = lib.load_agents()
+        handoff = load_handoff()
 
         new_ids = [m.id for m in messages if m.id not in processed]
         if new_ids:
@@ -91,6 +107,9 @@ def main():
                     note_needs_attention(msg_id, reason)
                 else:
                     for name in m.recipients:
+                        if handoff and name == handoff[0]:
+                            log(f"{msg_id}: {name} 앞 메일 알림을 인계자 {handoff[1]}에게 돌림 (handoff)")
+                            name = handoff[1]
                         if name not in agents:
                             log(f"{msg_id}: 알 수 없는 수신자 '{name}' (agents.conf에 없음)")
                             continue

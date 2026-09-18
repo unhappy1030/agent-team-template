@@ -84,9 +84,9 @@ DEPLOY="${DEPLOY_IN:-$DETECTED_DEPLOY}"
 
 read -rp "이 프로젝트에서 특히 조심해야 할 부분(과거 사고 이력, 민감 영역 등, 없으면 엔터): " CAUTION
 
-# 구현 워커(code-edit)가 있는 팀 구성에서만 물어본다 - 그 role만 검증 명령을 필요로 한다.
+# 구현 워커(code-edit, code1, code2 ...)가 있는 팀 구성에서만 물어본다 - 그 role만 검증 명령을 필요로 한다.
 BUILD_CMD=""
-[[ -f "$ROLES_DIR/code-edit.md" ]] && \
+compgen -G "$ROLES_DIR/code*.md" >/dev/null && \
   read -rp "빌드/타입체크/테스트 명령 (없으면 엔터): " BUILD_CMD
 
 # ── 3. role별 컨텍스트 조립 (role마다 필요한 정보량이 다르다) ───────────────
@@ -129,9 +129,9 @@ PYEOF
 for _role in "$ROLES_DIR"/*.md; do
   [[ -e "$_role" ]] || continue
   case "$(basename "$_role" .md)" in
-    main)       fill_role "$_role" "$MAIN_CTX" ;;
+    main*)      fill_role "$_role" "$MAIN_CTX" ;;   # main, main-gpt, main-claude
     supervisor) fill_role "$_role" "$SUPERVISOR_CTX" ;;
-    code-edit)  fill_role "$_role" "$BUILD_CTX" ;;
+    code*)      fill_role "$_role" "$BUILD_CTX" ;;  # code-edit, code1, code2
     *)          fill_role "$_role" "$REVIEW_CTX" ;;
   esac
 done
