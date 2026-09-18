@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 이 저장소를 세팅한 머신에 현재 설치돼 있는 MCP 서버 / 스킬 / 플러그인을 새 머신에서도
-# 동일하게 설치한다 (claude + antigravity 양쪽). README의 "MCP 서버 설정"/"스킬 설정" 절차를
+# 동일하게 설치한다 (claude + antigravity + codex). README의 "MCP 서버 설정"/"스킬 설정" 절차를
 # 그대로 스크립트로 옮긴 것 - 무엇을 설치하는지는 이 파일이 최신 출처(~/.agents/.skill-lock.json,
 # claude mcp list, claude plugin list 실측 결과)다.
 #
@@ -40,12 +40,21 @@ add_mcp_agy() {
   agy mcp add "$name" -- "$@" >/dev/null && echo "  agy: $name 등록"
 }
 
+# codex는 ~/.codex/config.toml을 `codex mcp add`가 갱신한다. codex가 없으면 건너뛴다.
+add_mcp_codex() {
+  command -v codex >/dev/null || return 0
+  local name="$1"; shift
+  codex mcp add "$name" -- "$@" >/dev/null && echo "  codex: $name 등록"
+}
+
 if [[ -n "$CODEGRAPH_BIN" ]]; then
   add_mcp_claude codegraph "$CODEGRAPH_BIN" serve --mcp
   add_mcp_agy codegraph "$CODEGRAPH_BIN" serve --mcp
+  add_mcp_codex codegraph "$CODEGRAPH_BIN" serve --mcp
 fi
 add_mcp_claude playwright npx -y @playwright/mcp@latest
 add_mcp_agy playwright npx -y @playwright/mcp@latest
+add_mcp_codex playwright npx -y @playwright/mcp@latest
 
 echo
 echo "== 2/3 스킬 (npx skills add) =="

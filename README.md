@@ -1,8 +1,15 @@
 # agent-team-template
 
-tmux + 파일 메일함(`inbox.md`) 기반 4인 에이전트 팀 템플릿: `main`(sonnet, 사람 대화+구현) /
-`supervisor`(opus, 온디맨드 자문) / `reviewer`+`reviewer-sub`(gemini, 코드리뷰·탐색·조사, sub는
-reviewer가 내부적으로 위임해 종합).
+tmux + 파일 메일함(`inbox.md`) 기반 에이전트 팀 템플릿. 팀 구성은 여러 벌 중에 고른다
+(`agent-team init --template <이름>`, 안 주면 물어본다):
+
+| 템플릿 | 구성 |
+|---|---|
+| `default` (4인) | `main`(sonnet, 사람 대화+구현) / `supervisor`(opus, 온디맨드 자문) / `reviewer`+`reviewer-sub`(gemini, 코드리뷰·탐색·조사) |
+| `gpt` (6인) | `main`(gpt-5.6-sol, 사람 대화+판단) / `code-edit`(gpt-5.6-luna, 구현 전담) / `supervisor`(opus) / `reviewer`(sonnet) + `sub-reviewer1`,`sub-reviewer2`(gemini) |
+
+템플릿을 더 만들려면 `agent-mail-template-<이름>/` 디렉터리를 하나 더 두면 된다
+(`agents.conf` + `roles/<에이전트>.md`). `init`이 자동으로 목록에 넣는다.
 
 ## 한 번에 설치 (새 머신)
 
@@ -28,7 +35,8 @@ agy만은 자동 설치가 안 된다 — https://antigravity.google 에서 설�
 scripts/setup/install-cli.sh   # ~/.local/bin/agent-team 심볼릭 링크 생성 (최초 1회)
 
 cd <target-repo>
-agent-team init                # .agent-mail + scripts/agent-team 복사 (로컬 클론 우선, 없으면 GitHub에서)
+agent-team init                # .agent-mail + scripts/agent-team 복사 (팀 구성 템플릿을 물어본다)
+agent-team init --template gpt # 물어보지 않고 특정 팀 구성으로
 agent-team start                # role 파일의 <TODO>를 대화형으로 채운 뒤 팀 기동
 ```
 
@@ -203,8 +211,23 @@ main이 이 컨텍스트를 이어받게 할까요? [Y/n]
 
 ## agents.conf 포맷
 
-`name:cli:model`, `cli`는 `claude` 또는 `antigravity`. `main`만 사람이 승인 모드로 붙고
-나머지는 자동 승인(`antigravity`는 `--sandbox`도 추가)으로 뜬다.
+`name:cli:model`, `cli`는 `claude` / `antigravity` / `codex`. `main`만 사람이 승인 모드로 붙고
+나머지는 자동 승인으로 뜬다(`antigravity`는 `--sandbox`, `codex`는
+`--dangerously-bypass-approvals-and-sandbox`).
+
+codex 워커만 샌드박스 없이 도는 이유: codex 샌드박스(`-a never -s workspace-write`)가 더 안전하지만
+번들 bubblewrap이 네트워크 네임스페이스를 못 만드는 커널(라즈베리파이 등, `loopback: Failed
+RTM_NEWADDR`)에서는 워커의 셸 명령이 전부 막혀 `agt reply`조차 못 한다 — 그 상태면 워커가 그냥
+죽은 세션이다. bwrap이 정상 동작하는 머신이면 start.sh의 그 줄을 샌드박스 쪽으로 바꿔 쓰는 게 낫다.
+
+codex는 model 칸을 `<모델>-<추론강도>`로 적는다(예: `gpt-5.6-sol-high`, `gpt-5.6-luna-xhigh`).
+강도는 `minimal/low/medium/high/xhigh/max/ultra/persistent`이고, start.sh가 뒤쪽 강도를 떼어
+`-c model_reasoning_effort=`로 넘긴다 — 슬러그에 강도를 붙인 채 보내면 ChatGPT 계정에서
+`400 model is not supported`가 난다(실측, 2026-09).
+
+codex 에이전트가 하나라도 있으면 start.sh가 `~/.codex/config.toml`에 그 저장소를
+`trust_level = "trusted"`로 미리 등록한다. 안 그러면 codex가 처음 보는 디렉터리에서 "이 디렉터리를
+신뢰하나?" 프롬프트를 띄우고 멈추는데, 사람이 안 보는 워커 세션은 거기서 영영 멈춘다.
 
 ## CLI 설치
 
@@ -213,6 +236,8 @@ main이 이 컨텍스트를 이어받게 할까요? [Y/n]
 - **claude (Claude Code)**: `npm install -g @anthropic-ai/claude-code`
 - **antigravity (agy)**: https://antigravity.google 에서 설치. 설치 후 `agy install`로
   PATH/셸 설정.
+- **codex (OpenAI Codex CLI)**: `npm install -g @openai/codex`. 최초 1회 `codex` 실행 →
+  Sign in with ChatGPT (Plus/Pro 플랜에 포함).
 - **codegraph**: `curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh`
   (이미 있으면 `codegraph upgrade`)
 
@@ -224,6 +249,7 @@ main이 이 컨텍스트를 이어받게 할까요? [Y/n]
 |---|---|---|
 | claude | `claude mcp add <name> -- <command> [args...]` | `~/.claude.json` (자동 관리) |
 | agy | `agy mcp add <name> -- <command> [args...]` | `~/.gemini/config/mcp_config.json` (자동 관리) |
+| codex | `codex mcp add <name> -- <command> [args...]` | `~/.codex/config.toml` (자동 관리) |
 
 agy 쪽은 `~/.gemini/antigravity/mcp_config.json`처럼 그럴듯해 보이는 다른 경로가 여럿
 있지만(스키마 파일은 `.antigravity-ide-server`에 있음) **실제로 읽는 건 `~/.gemini/config/

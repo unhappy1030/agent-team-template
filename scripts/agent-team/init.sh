@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # 현재 프로젝트(기본: cwd, 인자로 경로 지정 가능)에 에이전트 팀을 처음부터 만든다.
 # agent-team-template에서 .agent-mail(-$TEAM)과 scripts/agent-team을 복사해온다.
-# usage: agent-team init [target-dir]   (TEAM=<이름>이면 같은 저장소에 팀을 추가로 만든다)
+# usage: agent-team init [target-dir] [--template <이름>]
+#   TEAM=<이름>이면 같은 저장소에 팀을 추가로 만든다.
+#   --template은 팀 구성(멤버/CLI/모델)을 고른다. 안 주면 템플릿이 여러 개일 때 물어본다.
 set -euo pipefail
 
-TARGET="$(cd "${1:-.}" && pwd)"
+TEMPLATE="${TEMPLATE:-}"
+_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --template|-t) TEMPLATE="${2:-}"; shift 2 ;;
+    *) _args+=("$1"); shift ;;
+  esac
+done
+TARGET="$(cd "${_args[0]:-.}" && pwd)"
 
 REPO_ROOT="$TARGET"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_resolve.sh"
@@ -29,7 +39,50 @@ find_template() {
 
 TEMPLATE_DIR="$(find_template)"
 
-cp -r "$TEMPLATE_DIR/agent-mail-template" "$MAILDIR"
+# 팀 구성 템플릿 고르기: agent-mail-template(기본) + agent-mail-template-<이름> 들.
+# 이름은 디렉터리 접미사 그대로 쓴다 ("agent-mail-template-gpt" -> "gpt", 기본은 "default").
+tpl_name_of() {
+  local base; base="$(basename "$1")"
+  [[ "$base" == "agent-mail-template" ]] && echo "default" || echo "${base#agent-mail-template-}"
+}
+
+tpls=()
+for d in "$TEMPLATE_DIR"/agent-mail-template*; do
+  [[ -f "$d/agents.conf" ]] && tpls+=("$d")
+done
+[[ ${#tpls[@]} -gt 0 ]] || { echo "템플릿을 찾지 못했습니다: $TEMPLATE_DIR/agent-mail-template*" >&2; exit 1; }
+
+TPL=""
+if [[ -n "$TEMPLATE" ]]; then
+  for d in "${tpls[@]}"; do
+    [[ "$(tpl_name_of "$d")" == "$TEMPLATE" ]] && TPL="$d"
+  done
+  if [[ -z "$TPL" ]]; then
+    echo "그런 템플릿이 없습니다: $TEMPLATE" >&2
+    for d in "${tpls[@]}"; do echo "  - $(tpl_name_of "$d")" >&2; done
+    exit 1
+  fi
+elif [[ ${#tpls[@]} -eq 1 || ! -t 0 ]]; then
+  TPL="${tpls[0]}"
+else
+  echo "팀 구성 템플릿을 고르세요:"
+  for d in "${tpls[@]}"; do
+    # 주석/빈 줄 뺀 agents.conf 본문이 곧 팀 구성이라, 그대로 보여주면 설명이 필요 없다.
+    echo "  [$(tpl_name_of "$d")]"
+    grep -v -e '^#' -e '^[[:space:]]*$' "$d/agents.conf" | sed 's/^/      /'
+  done
+  echo
+  PS3="번호 선택: "
+  _names=(); for d in "${tpls[@]}"; do _names+=("$(tpl_name_of "$d")"); done
+  select choice in "${_names[@]}"; do
+    [[ -n "${choice:-}" ]] || continue
+    for d in "${tpls[@]}"; do [[ "$(tpl_name_of "$d")" == "$choice" ]] && TPL="$d"; done
+    break
+  done
+  [[ -n "$TPL" ]] || { echo "선택 안 됨" >&2; exit 1; }
+fi
+
+cp -r "$TPL" "$MAILDIR"
 mkdir -p "$TARGET/scripts"
 if [[ ! -d "$TARGET/scripts/agent-team" ]]; then
   cp -r "$TEMPLATE_DIR/scripts/agent-team" "$TARGET/scripts/agent-team"
@@ -45,7 +98,7 @@ start_cmd="agent-team start"
 [[ "$TEAM" != "$(basename "$TARGET")" ]] && start_cmd="agent-team --team $TEAM start"
 
 cat <<EOF
-생성됨: $MAILDIR
+생성됨: $MAILDIR (템플릿: $(tpl_name_of "$TPL") — $(grep -c -v -e '^#' -e '^[[:space:]]*$' "$TPL/agents.conf")명)
 생성됨: $TARGET/scripts/agent-team (이미 있었으면 건너뜀)
 
 다음 단계:

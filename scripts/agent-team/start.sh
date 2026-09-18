@@ -13,7 +13,7 @@ mkdir -p "$MAILDIR/roles"
 if [[ ! -f "$MAILDIR/agents.conf" ]]; then
   cat <<EOF >&2
 agents.conf 가 없습니다: $MAILDIR/agents.conf
-예시 (name:cli:model, cli는 claude 또는 antigravity):
+예시 (name:cli:model, cli는 claude / antigravity / codex):
 main:claude:opus5
 code-review:antigravity:gemini-3.6-flash-high
 EOF
@@ -101,6 +101,17 @@ rm -f "$MAILDIR/NEEDS_ATTN"
 touch "$MAILDIR/watch.processed"
 touch "$MAILDIR/inbox.md"
 
+# codex는 처음 보는 디렉터리에서 "이 디렉터리를 신뢰하나?" 프롬프트를 띄우고 멈춘다. 사람이
+# 지켜보지 않는 워커 세션은 거기서 영영 멈추므로, 세션을 띄우기 전에 프롬프트에서 "Yes"를
+# 골랐을 때와 똑같은 항목을 config.toml에 미리 넣어둔다.
+codex_trust() {
+  local cfg="${CODEX_HOME:-$HOME/.codex}/config.toml"
+  grep -qF "[projects.\"$REPO_ROOT\"]" "$cfg" 2>/dev/null && return 0
+  mkdir -p "$(dirname "$cfg")"
+  printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REPO_ROOT" >> "$cfg"
+  echo "codex: $REPO_ROOT 를 신뢰 디렉터리로 등록했습니다 ($cfg)"
+}
+
 for i in "${!names[@]}"; do
   name="${names[$i]}"
   cli="${clis[$i]}"
@@ -131,6 +142,26 @@ for i in "${!names[@]}"; do
         args+=(--dangerously-skip-permissions --sandbox)
       fi
       args+=(-i "$role_content")
+      ;;
+    codex)
+      codex_trust
+      # agents.conf의 model 칸은 "gpt-5.6-sol-high"처럼 <모델>-<추론강도>로 적는다.
+      # codex는 슬러그에 강도가 붙어 있으면 400을 뱉으므로(ChatGPT 계정 실측), 여기서 떼어내
+      # -c model_reasoning_effort= 로 따로 넘긴다.
+      effort=""
+      case "$model" in
+        *-minimal|*-low|*-medium|*-high|*-xhigh|*-max|*-ultra|*-persistent)
+          effort="${model##*-}"; model="${model%-*}" ;;
+      esac
+      args=(codex -m "$model")
+      [[ -n "$effort" ]] && args+=(-c "model_reasoning_effort=$effort")
+      # claude 워커의 --dangerously-skip-permissions에 해당. codex 자체 샌드박스(-a never
+      # -s workspace-write)가 더 안전하지만, 번들 bubblewrap이 네트워크 네임스페이스를 못 만드는
+      # 커널(라즈베리파이 등: "loopback: Failed RTM_NEWADDR")에서는 워커의 셸 명령이 전부 막혀
+      # agt reply조차 못 한다 - 그 상태의 워커는 그냥 죽은 세션이다.
+      # ponytail: 샌드박스 없이 감. bwrap이 도는 머신이면 위 두 플래그로 바꿔 쓰는 게 낫다.
+      [[ "$name" != "main" ]] && args+=(--dangerously-bypass-approvals-and-sandbox)
+      args+=("$role_content")
       ;;
     *)
       echo "알 수 없는 cli: $cli (agent: $name)" >&2

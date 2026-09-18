@@ -17,7 +17,7 @@ usage() {
 사용법: agent-team [--team <이름>] <명령> [인자...]
 
 명령:
-  init [target-dir]                         새 프로젝트에 팀 처음부터 생성 (템플릿 복사)
+  init [target-dir] [--template <이름>]      새 프로젝트에 팀 처음부터 생성 (팀 구성 템플릿 복사)
   upgrade                                   scripts/agent-team 코드를 템플릿 최신 버전으로 갱신
   uninstall [-y|--yes]                      init의 반대: 이 팀의 메일함을 통째로 삭제 (되돌릴 수 없음)
   reinit [-y|--yes]                         uninstall + init: 이 팀을 템플릿 상태로 리셋

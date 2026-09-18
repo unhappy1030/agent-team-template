@@ -84,6 +84,11 @@ DEPLOY="${DEPLOY_IN:-$DETECTED_DEPLOY}"
 
 read -rp "이 프로젝트에서 특히 조심해야 할 부분(과거 사고 이력, 민감 영역 등, 없으면 엔터): " CAUTION
 
+# 구현 워커(code-edit)가 있는 팀 구성에서만 물어본다 - 그 role만 검증 명령을 필요로 한다.
+BUILD_CMD=""
+[[ -f "$ROLES_DIR/code-edit.md" ]] && \
+  read -rp "빌드/타입체크/테스트 명령 (없으면 엔터): " BUILD_CMD
+
 # ── 3. role별 컨텍스트 조립 (role마다 필요한 정보량이 다르다) ───────────────
 
 MAIN_CTX="프로젝트: $NAME
@@ -97,6 +102,11 @@ REVIEW_CTX="스택: $STACK"
 리뷰 시 특히 주의: $CAUTION"
 
 SUPERVISOR_CTX="프로젝트: $NAME ($STACK)"
+
+BUILD_CTX="스택: $STACK
+검증 명령: ${BUILD_CMD:-없음 (직접 찾아서 실행할 것)}"
+[[ -n "$CAUTION" ]] && BUILD_CTX="$BUILD_CTX
+건드릴 때 주의: $CAUTION"
 
 # ── 4. 각 role 파일의 <TODO ...> 블록을 교체 ────────────────────────────────
 
@@ -114,10 +124,17 @@ PYEOF
   echo "채움: $file"
 }
 
-fill_role "$ROLES_DIR/main.md" "$MAIN_CTX"
-fill_role "$ROLES_DIR/reviewer.md" "$REVIEW_CTX"
-fill_role "$ROLES_DIR/reviewer-sub.md" "$REVIEW_CTX"
-fill_role "$ROLES_DIR/supervisor.md" "$SUPERVISOR_CTX"
+# role 파일 목록은 팀 구성(템플릿)마다 다르므로 이름을 박아두지 않고 있는 것을 전부 훑는다.
+# 모르는 이름은 리뷰어 계열로 본다 - 리뷰용 컨텍스트가 가장 무난하다.
+for _role in "$ROLES_DIR"/*.md; do
+  [[ -e "$_role" ]] || continue
+  case "$(basename "$_role" .md)" in
+    main)       fill_role "$_role" "$MAIN_CTX" ;;
+    supervisor) fill_role "$_role" "$SUPERVISOR_CTX" ;;
+    code-edit)  fill_role "$_role" "$BUILD_CTX" ;;
+    *)          fill_role "$_role" "$REVIEW_CTX" ;;
+  esac
+done
 
 echo
 echo "role 파일에 프로젝트 컨텍스트를 채웠습니다."
