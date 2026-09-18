@@ -183,13 +183,28 @@ for i in "${!names[@]}"; do
   # scripts/agent-team/send.sh 등을 실행해도 ${VAR:-...} 소프트 디폴트가 이 상속값을 계속
   # 우선시해 조용히 원래 팀의 메일함으로 보낸다 (실사고: agent-team-maildir-leak.md).
   # 에이전트 세션은 이 셋을 몰라야 매번 자기가 실제로 있는 위치 기준으로 새로 계산한다.
-  tmux new-session -d -s "$TEAM/$name" -c "$REPO_ROOT" -- env -u REPO_ROOT -u TEAM -u MAILDIR "${args[@]}"
+  # remain-on-exit: CLI가 뜨자마자 죽으면(명령 없음, 로그인 안 됨, 인자 오류 등) tmux는 세션째
+  # 지워버려서 에러 출력도 같이 사라지고, 대시보드에서는 그 에이전트가 말없이 빠진다. pane을
+  # dead 상태로 남겨서 무엇이 찍혔는지 볼 수 있게 한다. 같은 명령 시퀀스(\;)에 묶어야 자식이
+  # 즉시 죽는 경우에도 옵션이 먼저 걸린다.
+  tmux new-session -d -s "$TEAM/$name" -c "$REPO_ROOT" -- env -u REPO_ROOT -u TEAM -u MAILDIR "${args[@]}" \; \
+    set-option -w remain-on-exit on
   # 이 세션은 overview pane(작음)과 전용 창(큼) 양쪽에서 동시에 attach된다. 기본값인
   # window-size=latest는 둘 중 "최근에 활성화된 쪽" 크기를 따라가 버려 전용 창이 overview
   # pane 크기로 눌리고 남는 공간이 빈 칸으로 남는다. largest로 두면 항상 더 큰 쪽(전용 창)
   # 크기를 따르고, overview pane은 그 일부만 잘려 보이는 정상적인 동작이 된다.
   tmux set-option -t "=$TEAM/$name:" window-size largest
   echo "tmux 세션 시작: $TEAM/$name ($cli / $model)"
+done
+
+# 기동 직후 죽은 에이전트를 바로 알린다 (remain-on-exit 덕에 pane과 에러 출력이 남아 있다).
+# 흔한 원인: tmux 서버가 nvm PATH 없이 먼저 떠 있어서 npm으로 깐 CLI를 못 찾는 경우(exit 127).
+sleep 2
+for name in "${names[@]}"; do
+  st="$(tmux display-message -p -t "=$TEAM/$name:" '#{pane_dead} #{pane_dead_status}' 2>/dev/null || echo "1 ?")"
+  if [[ "$st" == 1* ]]; then
+    echo "⚠ $TEAM/$name 이 기동 직후 종료됨 (exit ${st#1 }) — 에러 확인: tmux attach -t \"=$TEAM/$name\"" >&2
+  fi
 done
 
 nohup python3 "$DIR/watch.py" >> "$MAILDIR/relay.log" 2>&1 &
