@@ -52,9 +52,13 @@ if [[ -n "$CODEGRAPH_BIN" ]]; then
   add_mcp_agy codegraph "$CODEGRAPH_BIN" serve --mcp
   add_mcp_codex codegraph "$CODEGRAPH_BIN" serve --mcp
 fi
-add_mcp_claude playwright npx -y @playwright/mcp@latest
-add_mcp_agy playwright npx -y @playwright/mcp@latest
-add_mcp_codex playwright npx -y @playwright/mcp@latest
+# linux arm64(라즈베리파이 등)엔 Google Chrome 빌드가 없어서 기본값(chrome 채널)으로는 브라우저를
+# 못 띄운다 - Playwright 번들 chromium을 쓰게 한다 (이 머신 claude 등록이 실제로 이렇게 돼 있음).
+PW_ARGS=(-y @playwright/mcp@latest)
+[[ "$(uname -m)" == aarch64 ]] && PW_ARGS+=(--browser=chromium)
+add_mcp_claude playwright npx "${PW_ARGS[@]}"
+add_mcp_agy playwright npx "${PW_ARGS[@]}"
+add_mcp_codex playwright npx "${PW_ARGS[@]}"
 
 echo
 echo "== 2/3 스킬 (npx skills add) =="
@@ -84,6 +88,27 @@ done
 echo
 echo "== 3/3 antigravity용 스킬 심볼릭 링크 동기화 =="
 "$(dirname "${BASH_SOURCE[0]}")/sync-antigravity-skills.sh"
+
+# codex는 사용자 스킬을 ~/.agents/skills(= npx skills add의 원본 설치 위치)에서 직접 읽는다.
+# 그래서 위 설치만으로 codex에도 전부 보인다 - `-a codex`를 더하면 같은 스킬이 두 곳에서 잡혀
+# 중복으로 뜨므로 넣지 않는다. 대신 codex에 없는 도구를 전제로 한 스킬은 codex에서만 꺼둔다
+# (codex는 스킬 목록에 컨텍스트 2%만 쓰니, 못 쓰는 스킬이 자리만 차지하지 않게):
+#   ctx-*/context-mode*: context-mode MCP(ctx_* 도구) 전제 - codex엔 미설치
+#   caveman-stats: Claude Code 세션 로그를 읽음 / cavecrew: Claude Agent 툴 서브에이전트 전제
+# context-mode를 codex에 설치했다면(codex plugin marketplace add mksglu/context-mode) 이 목록에서 빼면 된다.
+CODEX_OFF_SKILLS=(context-mode context-mode-ops ctx-doctor ctx-index ctx-insight ctx-purge
+                  ctx-search ctx-stats ctx-upgrade caveman-stats cavecrew)
+if command -v codex >/dev/null; then
+  cfg="${CODEX_HOME:-$HOME/.codex}/config.toml"
+  mkdir -p "$(dirname "$cfg")"
+  for s in "${CODEX_OFF_SKILLS[@]}"; do
+    path="$HOME/.agents/skills/$s/SKILL.md"
+    [[ -f "$path" ]] || continue
+    grep -qF "path = \"$path\"" "$cfg" 2>/dev/null && continue
+    printf '\n[[skills.config]]\npath = "%s"\nenabled = false\n' "$path" >> "$cfg"
+    echo "  codex: $s 비활성화 (Claude 전용 도구 전제)"
+  done
+fi
 
 echo
 echo "== 플러그인 (ponytail) =="

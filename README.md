@@ -273,6 +273,12 @@ codex 에이전트가 하나라도 있으면 start.sh가 `~/.codex/config.toml`�
 | agy | `agy mcp add <name> -- <command> [args...]` | `~/.gemini/config/mcp_config.json` (자동 관리) |
 | codex | `codex mcp add <name> -- <command> [args...]` | `~/.codex/config.toml` (자동 관리) |
 
+claude.ai 커넥터(Gmail/Drive/Calendar/Figma/Claude Docs)는 claude.ai 계정에 붙어 있어서
+claude에서만 쓸 수 있다 — codex/agy로는 못 옮긴다. 옮겨지는 건 로컬 MCP(codegraph, playwright)뿐이다.
+
+linux arm64(라즈베리파이 등)에는 Google Chrome 빌드가 없어서 playwright MCP가 기본값(chrome)으로는
+브라우저를 못 띄운다. 설치 스크립트가 arm64면 `--browser=chromium`을 붙여 등록한다.
+
 agy 쪽은 `~/.gemini/antigravity/mcp_config.json`처럼 그럴듯해 보이는 다른 경로가 여럿
 있지만(스키마 파일은 `.antigravity-ide-server`에 있음) **실제로 읽는 건 `~/.gemini/config/
 mcp_config.json` 하나뿐**이다 (실측 확인, 2026-08). `agy mcp add`가 이 파일을 갱신해주므로
@@ -307,6 +313,22 @@ scripts/setup/sync-antigravity-skills.sh
 새 스킬을 추가로 설치할 때마다 다시 실행하면 된다 (이미 연결된 건 건너뛴다).
 
 확인: `agy -p "사용 가능한 스킬 목록을 알려줘" --dangerously-skip-permissions`
+
+**codex는 반대로 `~/.agents/skills/`를 직접 읽는다**(사용자 스킬 위치, 실측 2026-09). 그래서
+위 설치만으로 codex에도 다 보이고 동기화가 필요 없다. `-a codex`를 추가하면 같은 스킬이 두 곳에서
+잡혀 중복으로 뜨므로 넣지 않는다.
+
+codex에 없는 도구를 전제로 한 스킬 11개는 설치 스크립트가 **codex에서만** 꺼둔다
+(`~/.codex/config.toml`의 `[[skills.config]] enabled = false`, claude/agy는 그대로):
+context-mode 계열 9개(`ctx_*` MCP 도구 전제), `caveman-stats`(Claude 세션 로그를 읽음),
+`cavecrew`(Claude Agent 툴 전제). codex는 스킬 목록에 컨텍스트의 2%만 쓰므로 못 쓰는 스킬이
+자리만 차지하지 않게 하려는 것이다. context-mode를 codex에 설치했다면
+(`codex plugin marketplace add mksglu/context-mode`) 스크립트의 `CODEX_OFF_SKILLS`에서 빼면 된다.
+
+`grill-me`, `handoff`처럼 `disable-model-invocation: true`인 스킬은 모델이 스스로 고르는 목록에는
+안 나오고 사람이 직접 부를 때만 쓰인다 — codex도 Claude와 똑같이 동작한다.
+
+확인: `codex exec "사용 가능한 스킬 이름만 쉼표로 나열해줘"`
 
 설치되는 스킬은 각자 다른 사람이 만든 외부 코드/프롬프트다. `npx skills add`는 설치 시
 Gen/Socket/Snyk 3종 보안 스캔 결과를 보여주는데, 코드를 직접 실행하는 유형의 스킬
