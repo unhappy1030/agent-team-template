@@ -95,6 +95,21 @@ tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 tmux set-option -t "=$DASH:" mouse on
 tmux set-option -t "=$DASH:" window-size latest
 
+# 레이아웃을 짜는 동안 걸어둔 수동 크기를 전부 풀어(-A = automatic), 모든 창이 attach한 터미널
+# 크기를 따르게 한다. 안 풀면 overview는 위에서 resize-window로 박은 200x50에 영구히 고정되고,
+# 그 뒤에 만든 창들은 window-size manual 상태에서 태어나느라 1행짜리로 남는다 - 그 1행 창 안에서
+# tmux attach가 에이전트 세션에 아주 작은 클라이언트로 붙고, 에이전트 세션은 window-size largest라
+# 창 크기와 실제로 그려진 크기가 어긋나 화면이 깨져 보였다 (에이전트가 많을수록 심해진다).
+for w in overview "${running[@]}" mail; do
+  tmux resize-window -A -t "=$DASH:$w" 2>/dev/null || true
+done
+
+# 위 -A는 클라이언트가 붙어 있을 때만 실제로 다시 계산된다. 이 스크립트는 항상 클라이언트 없이
+# (detached) 대시보드를 만들므로, 나중에 agt view로 붙는 순간 한 번 더 풀어줘야 창들이 그 터미널
+# 크기를 따른다. 안 그러면 attach해도 만들 때 크기(200x50)에 박제된 채로 남아 화면이 어긋난다.
+tmux set-hook -t "=$DASH:" client-attached \
+  "run-shell \"tmux list-windows -t '=$DASH' -F '##{window_id}' | xargs -n1 -I@ tmux resize-window -A -t @\""
+
 # window-size=latest면 tmux가 현재 창을 클라이언트 크기에 맞추고, 다른 창은 그 창으로
 # 전환하는 순간 맞춰준다(tiled 레이아웃도 비율대로 같이 스케일됨) - 별도 훅 불필요.
 # (예전엔 여기서 resize-window -x "#{client_width}" 훅을 걸었으나, resize-window의
