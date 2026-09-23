@@ -231,6 +231,38 @@ context.md 갱신 → main-gpt 세션에서 context.md를 읽게 하면 된다. 
 main-claude는 평소 사람이 안 보는 채로 자문 답장을 보내야 해서, 이게 없으면 `agt reply` 승인
 대기에서 멈춘다.
 
+## 토큰 사용량 / 한도 확인
+
+```bash
+agent-team usage      # 또는 agt usage
+```
+
+대시보드에도 같은 내용이 `usage` 창으로 붙어 있다(30초 갱신).
+
+```
+에이전트      모델                                   입력     출력     캐시     합계  갱신
+main-gpt      codex/gpt-5.6-sol-high                 4.9M    38.2k     4.8M     9.7M  12:14
+main-claude   claude/opus                              36    23.4k     1.1M     1.2M  12:27
+...
+한도 (실시간, 12:32:28 조회)
+  claude        5시간 23%, 리셋 3h 47m 뒤 · 7일 6%, 리셋 4d 9h 뒤
+  codex(plus)   7일 18%, 리셋 1d 23h 뒤
+  agy           한도를 알려주는 CLI 명령도 로컬 기록도 없음
+```
+
+**토큰 합계**는 각 CLI가 남기는 세션 로그를 읽는다 — claude는 `~/.claude/projects/*/*.jsonl`,
+codex는 `~/.codex/sessions/**/rollout-*.jsonl`. 세션의 첫 메시지가 role 파일 원문이라
+`# <이름> 역할 정의`로 에이전트 이름을 짝짓는다. agy는 토큰 수치를 로컬에 남기지 않는다.
+
+**한도**는 각 CLI가 이미 저장해둔 자기 자격증명으로 해당 서비스의 공식 사용량 엔드포인트에
+직접 묻는다(`api.anthropic.com/api/oauth/usage`, `chatgpt.com/backend-api/codex/usage`).
+본인 계정의 사용량 조회이고 제3자로 나가는 요청은 없다. 결과는 메일함의 `usage-limits.json`에
+120초 캐시한다(실패는 캐시하지 않는다). 로컬 캐시(`~/.claude.json`의 `cachedUsageUtilization`)도
+있지만 며칠씩 갱신되지 않은 채로 남아 있어 쓰지 않는다.
+
+주의: **codex는 계정/플랜에 따라 5시간 창이 아예 안 잡힐 수 있다.** ChatGPT Plus로 실측하면
+주간 창(7일)만 내려오고 5시간 창은 `null`이다. dual-main의 인계 시점은 이 주간 사용률로 본다.
+
 ## agents.conf 포맷
 
 `name:cli:model`, `cli`는 `claude` / `antigravity` / `codex`. `main`만 사람이 승인 모드로 붙고

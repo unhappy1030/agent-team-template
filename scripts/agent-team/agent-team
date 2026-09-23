@@ -27,6 +27,7 @@ usage() {
   dashboard                                 세션 대시보드 (재)생성
   view                                      대시보드에 바로 attach (tmux attach 대신)
   status                                    메일 스레드 완료 상태
+  usage                                     에이전트별 토큰 사용량 + CLI 한도(리셋까지 남은 시간)
   send <from> <to1,to2,...> <제목> <본문>    새 메일
   reply <from> <MSG-id> <본문>               답장
 
@@ -113,7 +114,7 @@ export TEAM="$(team_name_of "$chosen")"
 export REPO_ROOT="$(dirname "$chosen")"
 
 case "$cmd" in
-  start|stop|dashboard|view|status|send|reply|uninstall|reinit|reset|upgrade)
+  start|stop|dashboard|view|status|usage|send|reply|uninstall|reinit|reset|upgrade)
     exec "$SCRIPT_DIR/$cmd.sh" "$@"
     ;;
   *)

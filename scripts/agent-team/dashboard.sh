@@ -5,6 +5,7 @@
 #   overview - 전체 세션을 타일로 동시에 보여줌 (한눈에 훑어보기용)
 #   <agent>  - 에이전트별 전용 창, 전체 화면 (탭처럼 전환)
 #   mail     - .agent-mail/relay.log, inbox.md 실시간 tail (메일 내용 확인용)
+#   usage    - 에이전트별 토큰 사용량과 codex 한도 (usage.py를 30초마다 실행)
 #
 # 각 pane/창은 해당 세션에 실제로 붙은 두 번째 클라이언트라 타이핑도 그대로 먹는다 —
 # 단, prefix 키(Ctrl-b)는 대시보드 세션 자체가 먼저 가로챈다.
@@ -14,7 +15,8 @@
 set -euo pipefail
 
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-source "$(dirname "${BASH_SOURCE[0]}")/_resolve.sh"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # usage 창 셸에 넘길 때 절대경로여야 한다
+source "$DIR/_resolve.sh"
 DASH="$TEAM/dashboard"
 
 if [[ ! -f "$MAILDIR/agents.conf" ]]; then
@@ -90,6 +92,12 @@ tmux select-pane -t "=$DASH:mail" -T inbox
 tmux send-keys -t "=$DASH:mail" "tail -n 100 -f '$MAILDIR/inbox.md'" Enter
 tmux select-layout -t "=$DASH:mail" even-horizontal >/dev/null
 
+# usage 창: 에이전트별 토큰 사용량 + codex 한도. 30초마다 다시 그린다(로그 파일을 읽을 뿐이라 쌈).
+# send-keys로 셸에 넣는 건 mail 창과 같은 이유다 - 루프가 죽어도 창이 닫히지 않고 셸이 남는다.
+tmux new-window -t "=$DASH" -n usage
+tmux send-keys -t "=$DASH:usage" \
+  "while :; do clear; MAILDIR='$MAILDIR' TEAM='$TEAM' REPO_ROOT='$REPO_ROOT' python3 '$DIR/usage.py'; sleep 30; done" Enter
+
 # -t "=$DASH" (콜론 없는 exact-match)는 세션 대상 set-option에서 "no such session"으로
 # 실패하는 tmux 버그가 있다(has-session/kill-session은 멀쩡함). 콜론을 붙이면 정상 동작한다.
 tmux set-option -t "=$DASH:" mouse on
@@ -100,7 +108,7 @@ tmux set-option -t "=$DASH:" window-size latest
 # 그 뒤에 만든 창들은 window-size manual 상태에서 태어나느라 1행짜리로 남는다 - 그 1행 창 안에서
 # tmux attach가 에이전트 세션에 아주 작은 클라이언트로 붙고, 에이전트 세션은 window-size largest라
 # 창 크기와 실제로 그려진 크기가 어긋나 화면이 깨져 보였다 (에이전트가 많을수록 심해진다).
-for w in overview "${running[@]}" mail; do
+for w in overview "${running[@]}" mail usage; do
   tmux resize-window -A -t "=$DASH:$w" 2>/dev/null || true
 done
 
@@ -127,10 +135,11 @@ cat <<EOF
 
   tmux attach -t "=$DASH"
 
-창(탭) 목록: overview, ${running[*]}, mail
+창(탭) 목록: overview, ${running[*]}, mail, usage
   - overview: 전체 세션 타일 뷰
   - ${running[*]}: 에이전트별 전용 전체 화면 창
   - mail: relay.log(왼쪽) / inbox.md(오른쪽) 실시간 tail
+  - usage: 에이전트별 토큰 사용량 + codex 한도 (30초 갱신)
 
 마우스 사용 가능: 하단 상태줄의 창 이름을 클릭하면 그 창으로 전환, pane을 클릭하면
 포커스 이동, 스크롤휠로 스크롤백 확인이 됩니다.
