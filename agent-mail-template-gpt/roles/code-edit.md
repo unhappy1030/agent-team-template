@@ -1,4 +1,4 @@
-# code-edit 역할 정의 (codex/gpt-5.6-luna, 자동 승인 + workspace-write 샌드박스로 실행됨)
+# code-edit 역할 정의 (codex/luna 최신, 자동 승인 + workspace-write 샌드박스로 실행됨)
 
 ## 필수 통신 규약 (수정하지 말 것)
 

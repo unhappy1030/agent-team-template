@@ -112,6 +112,46 @@ codex_trust() {
   echo "codex: $REPO_ROOT 를 신뢰 디렉터리로 등록했습니다 ($cfg)"
 }
 
+# codex 모델명 해석. "<계열>-latest"(예: sol-latest)면 codex가 받아둔 모델 목록(models_cache.json,
+# codex가 뜰 때마다 갱신)에서 gpt-<버전>-<계열> 중 버전이 가장 높은 것을 고른다 - 최상위 플래그십
+# (astra 등)으로 넘어가 토큰을 태우지 않게 계열은 고정한다. 구체 슬러그라도 은퇴 예정이라 upgrade가
+# 붙어 있으면 그 후속 모델로 따라간다. claude는 CLI 자체가 opus/sonnet 별칭을 최신으로 풀어주므로 따로 할 게 없다.
+codex_model() {
+  python3 - "$1" "${CODEX_HOME:-$HOME/.codex}/models_cache.json" <<'EOF'
+import json, re, sys
+want, cache = sys.argv[1], sys.argv[2]
+latest = want.endswith("-latest")
+try:
+    models = json.load(open(cache))["models"]
+except (OSError, ValueError, KeyError):
+    if latest:
+        sys.exit(f"codex 모델 목록이 없습니다({cache}) - codex를 한 번 실행한 뒤 다시 시도하세요")
+    print(want); sys.exit()
+by_slug = {m["slug"]: m for m in models}
+if latest:
+    pat = re.compile(rf"gpt-([\d.]+)-{re.escape(want[:-len('-latest')])}")
+    found = [(tuple(map(int, g.group(1).split("."))), m["slug"]) for m in models
+             if m.get("visibility") == "list" and (g := pat.fullmatch(m["slug"]))]
+    if not found:
+        sys.exit(f"codex 모델 목록에 {want} 계열 모델이 없습니다")
+    want = max(found)[1]
+seen = set()
+while (by_slug.get(want) or {}).get("upgrade") and want not in seen:
+    seen.add(want)
+    want = by_slug[want]["upgrade"]["model"]
+print(want)
+EOF
+}
+
+# agy 모델명 해석. "latest-<강도>"면 `agy models` 목록(최신이 위)에서 그 강도의 첫 gemini 모델.
+agy_model() {
+  [[ "$1" == latest-* ]] || { echo "$1"; return; }
+  local m
+  m="$(timeout 30 agy models 2>/dev/null | awk -v e="-${1#latest-}" '$1 ~ /^gemini-/ && substr($1, length($1)-length(e)+1) == e { print $1; exit }')"
+  [[ -n "$m" ]] || { echo "agy 모델 목록에서 $1 에 맞는 모델을 못 찾았습니다" >&2; return 1; }
+  echo "$m"
+}
+
 for i in "${!names[@]}"; do
   name="${names[$i]}"
   cli="${clis[$i]}"
@@ -145,6 +185,8 @@ for i in "${!names[@]}"; do
       args+=(--model "$model" "$role_content")
       ;;
     antigravity)
+      model="$(agy_model "$model")"
+      echo "$name: agy $model"
       args=(agy --model "$model")
       if [[ "$name" != main* ]]; then
         args+=(--dangerously-skip-permissions --sandbox)
@@ -161,6 +203,8 @@ for i in "${!names[@]}"; do
         *-minimal|*-low|*-medium|*-high|*-xhigh|*-max|*-ultra|*-persistent)
           effort="${model##*-}"; model="${model%-*}" ;;
       esac
+      model="$(codex_model "$model")"
+      echo "$name: codex $model${effort:+ ($effort)}"
       args=(codex -m "$model")
       [[ -n "$effort" ]] && args+=(-c "model_reasoning_effort=$effort")
       # claude 워커의 --dangerously-skip-permissions에 해당. codex 자체 샌드박스(-a never

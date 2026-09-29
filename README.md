@@ -6,8 +6,10 @@ tmux + 파일 메일함(`inbox.md`) 기반 에이전트 팀 템플릿. 팀 구�
 | 템플릿 | 구성 |
 |---|---|
 | `default` (4인) | `main`(sonnet, 사람 대화+구현) / `supervisor`(opus, 온디맨드 자문) / `reviewer`+`reviewer-sub`(gemini, 코드리뷰·탐색·조사) |
-| `gpt` (6인) | `main`(gpt-5.6-sol, 사람 대화+판단) / `code-edit`(gpt-5.6-luna, 구현 전담) / `supervisor`(opus) / `reviewer`(sonnet) + `sub-reviewer1`,`sub-reviewer2`(gemini) |
-| `dual-main` (6인) | `main-gpt`(gpt-5.6-sol, 평소 main) / `main-claude`(opus, 평소 자문 → gpt 토큰 소진 시 main 인계) / `code1`(gpt-5.6-luna) + `code2`(sonnet, 구현) / `reviewer1`,`reviewer2`(gemini, 리뷰·검색·구조 파악, 각자 독립 답장) |
+| `gpt` (6인) | `main`(codex sol 최신, 사람 대화+판단) / `code-edit`(codex luna 최신, 구현 전담) / `supervisor`(opus) / `reviewer`(sonnet) + `sub-reviewer1`,`sub-reviewer2`(gemini) |
+| `dual-main` (6인) | `main-gpt`(codex sol 최신, 평소 main) / `main-claude`(opus, 평소 자문 → gpt 토큰 소진 시 main 인계) / `code1`(codex luna 최신) + `code2`(sonnet, 구현) / `reviewer1`,`reviewer2`(gemini, 리뷰·검색·구조 파악, 각자 독립 답장) |
+| `lite-dual-main` (4인) | `main-gpt`(codex sol 최신) + `main-claude`(opus) **공동 main** — 사람이 언제든 둘 중 아무 쪽에나 입력, `context.md`를 main별 섹션으로 나눠 충돌 방지 / `code1`(codex luna 최신) + `code2`(sonnet) 공유. 리뷰어 없음 |
+| `docs-dual-main` (2인) | `main-gpt`(codex sol 최신) + `main-claude`(opus) 공동 main — 자료조사·문서 작업용, 워커 없이 각자 직접 조사·작성, 필요할 때 서로 교차검토 |
 
 템플릿을 더 만들려면 `agent-mail-template-<이름>/` 디렉터리를 하나 더 두면 된다
 (`agents.conf` + `roles/<에이전트>.md`). `init`이 자동으로 목록에 넣는다.
@@ -288,6 +290,22 @@ codex는 model 칸을 `<모델>-<추론강도>`로 적는다(예: `gpt-5.6-sol-h
 codex 에이전트가 하나라도 있으면 start.sh가 `~/.codex/config.toml`에 그 저장소를
 `trust_level = "trusted"`로 미리 등록한다. 안 그러면 codex가 처음 보는 디렉터리에서 "이 디렉터리를
 신뢰하나?" 프롬프트를 띄우고 멈추는데, 사람이 안 보는 워커 세션은 거기서 영영 멈춘다.
+
+## 모델 자동 최신화 (`latest`)
+
+agents.conf의 model 칸은 `start`할 때마다 풀린다 — conf를 손으로 고칠 필요가 없다.
+
+| cli | 쓰는 법 | 풀리는 방식 |
+|---|---|---|
+| claude | `opus`, `sonnet` | CLI 자체 별칭이 원래 최신 모델을 가리킨다 |
+| codex | `sol-latest-high`, `luna-latest-xhigh` | codex가 받아둔 모델 목록(`~/.codex/models_cache.json`, codex가 뜰 때마다 갱신)에서 `gpt-<버전>-<계열>` 중 버전이 가장 높은 것 |
+| codex | `gpt-5.6-luna-xhigh` 같은 구체 슬러그 | 그대로 쓰되, 은퇴 예정이라 목록에 후속 모델(`upgrade`)이 붙으면 자동으로 그쪽으로 |
+| agy | `latest-high` | `agy models` 목록(최신이 위)에서 그 강도의 첫 gemini 모델 |
+
+codex는 일부러 **계열을 고정**한다 — 그냥 "목록 1등"을 고르면 최상위 플래그십(`gpt-6-astra` 등)으로
+넘어가 토큰을 크게 태운다. main은 sol, 구현 워커는 luna 계열에서 새 버전만 따라간다.
+`start` 출력에 `main-gpt: codex gpt-5.6-sol (high)`처럼 실제로 고른 모델이 찍힌다. 기존 설치
+프로젝트는 `agt upgrade`로 스크립트를 받은 뒤 agents.conf의 model 칸만 바꾸면 된다.
 
 ## CLI 설치
 
