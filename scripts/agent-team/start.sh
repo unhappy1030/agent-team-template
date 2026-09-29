@@ -74,7 +74,9 @@ done
 # stop.sh는 세션만 죽일 뿐 이 파일은 남기므로, 껐다 켜도 여기서 이어붙일 수 있다.
 resume_context=0
 CONTEXT="$MAILDIR/context.md"
-if [[ -s "$CONTEXT" ]] && printf '%s\n' "${names[@]}" | grep -q '^main'; then
+# 공동 main 템플릿의 context.md는 "## <main>" 빈 섹션 제목만 있을 수 있다 - 그건 내용 없음으로 본다.
+if [[ -f "$CONTEXT" ]] && grep -qv -e '^## main' -e '^[[:space:]]*$' "$CONTEXT" \
+   && printf '%s\n' "${names[@]}" | grep -q '^main'; then
   if [[ -t 0 ]]; then
     echo "이전 세션의 작업 컨텍스트가 있습니다: $CONTEXT"
     echo "----------------------------------------"

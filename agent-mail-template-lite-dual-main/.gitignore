@@ -8,3 +8,4 @@ NEEDS_ATTN
 *.pid
 handoff
 usage-limits.json
+prev-team/

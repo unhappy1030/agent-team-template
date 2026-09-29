@@ -164,6 +164,29 @@ agent-team --team featureA reinit -y
 agent-team reset -y
 ```
 
+메일 기록은 그대로 두고 **팀 구성만** 다른 템플릿으로 바꾸려면 `switch`를 쓴다
+(예: 하던 작업 중간에 dual-main → lite-dual-main으로 가볍게).
+
+```bash
+agent-team switch                          # 템플릿을 ↑↓로 고르고, 이전 context.md 반영 여부를 묻는다
+agent-team switch --template lite-dual-main -y --context      # 묻지 않고 반영
+agent-team switch --template docs-dual-main -y --no-context   # 새 팀은 빈 컨텍스트로
+agent-team start
+```
+
+- 교체되는 건 `agents.conf`와 `roles/`. `inbox.md`/`watch.processed`는 유지된다.
+- 팀이 떠 있으면 먼저 내린다(확인을 묻고, `-y`면 바로). 새 구성으로 띄우는 건 `start`로 직접.
+- 이전 `agents.conf`/`roles`/`context.md`는 `.agent-mail/prev-team/`에 한 벌 보관된다(다음 switch 때 덮어씀).
+- `context.md`는 새 팀 형식으로 다시 만든다 — main이 여럿이면 `## main-gpt` / `## main-claude` 빈
+  섹션, 하나면 빈 파일. 이전 내용 반영은 대화형이면 `[Y/n]`으로 묻고(비대화형 기본은 반영),
+  `--context`/`--no-context`로 지정할 수 있다. 반영할 때 이전 파일의 `## <main>` 섹션은 같은 이름의
+  새 main에게, 섹션이 없거나 이름이 안 맞는 부분은 첫 main에게 간다(두 main에 같은 내용을 복사하면
+  둘이 같은 일을 이어받으므로 복사하지 않는다).
+- role 파일에 채워둔 `## 프로젝트 컨텍스트`는 새 role로 옮겨진다 — 같은 이름의 옛 role이 있으면
+  그것, 없으면 같은 계열(main\* / code\* / supervisor / 그 외=리뷰어)에서. 못 찾은 role만 다음
+  `start`에서 온보딩이 묻는다.
+- `agt switch`는 템플릿 쪽 스크립트로 돈다. 프로젝트의 `scripts/agent-team`을 upgrade하지 않아도 된다.
+
 `agent-team`은 실행된 위치(cwd)에서 위로 올라가며 `.agent-mail`(또는 `.agent-mail-<팀>`)을
 찾아 그 팀에게 위임할 뿐인 얇은 래퍼다(git이 `.git`을 찾는 방식과 동일) — CLI 프레임워크가
 아니라 기존 `.sh` 스크립트에 `exec`으로 넘겨주는 30줄짜리 스크립트다. 저장소 폴더 안 어디서

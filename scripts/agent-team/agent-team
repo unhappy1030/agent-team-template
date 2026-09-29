@@ -22,6 +22,7 @@ usage() {
   uninstall [-y|--yes]                      init의 반대: 이 팀의 메일함을 통째로 삭제 (되돌릴 수 없음)
   reinit [-y|--yes]                         uninstall + init: 이 팀을 템플릿 상태로 리셋
   reset [-y|--yes]                          메일 큐만 비움 (inbox/relay.log/처리기록). role/agents.conf는 유지
+  switch [--template <이름>] [--context|--no-context] [-y]  팀 구성만 교체. 메일 기록 유지, context.md는 반영 여부 선택
   start                                     팀 세션 기동 (필요 시 자동 온보딩, dashboard도 같이 생성)
   stop                                      watch.py + 이 팀의 tmux 세션(에이전트 전체 + dashboard) 종료
   dashboard                                 세션 대시보드 (재)생성
@@ -114,7 +115,7 @@ export TEAM="$(team_name_of "$chosen")"
 export REPO_ROOT="$(dirname "$chosen")"
 
 case "$cmd" in
-  start|stop|dashboard|view|status|usage|send|reply|uninstall|reinit|reset|upgrade)
+  start|stop|dashboard|view|status|usage|send|reply|uninstall|reinit|reset|switch|upgrade)
     exec "$SCRIPT_DIR/$cmd.sh" "$@"
     ;;
   *)

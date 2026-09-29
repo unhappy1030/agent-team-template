@@ -19,7 +19,8 @@ TARGET="$(cd "${_args[0]:-.}" && pwd)"
 REPO_ROOT="$TARGET"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_resolve.sh"
 
-if [[ -d "$MAILDIR" ]]; then
+# SWITCH=1(switch.sh가 부름)이면 이미 있는 메일함에 팀 구성(agents.conf + roles/)만 새로 깐다.
+if [[ -d "$MAILDIR" && -z "${SWITCH:-}" ]]; then
   echo "메일함이 이미 있습니다: $MAILDIR (agent-team start로 진행하거나, 다시 만들려면 agent-team reinit)" >&2
   exit 1
 fi
@@ -102,6 +103,13 @@ else
   printf '\e[?25h'
   trap - EXIT
   TPL="${tpls[$cur]}"
+fi
+
+if [[ -n "${SWITCH:-}" ]]; then
+  rm -rf "$MAILDIR/roles"
+  cp -r "$TPL/roles" "$TPL/agents.conf" "$MAILDIR/"
+  echo "팀 구성 교체됨: $MAILDIR (템플릿: $(tpl_name_of "$TPL") — $(grep -c -v -e '^#' -e '^[[:space:]]*$' "$TPL/agents.conf")명)"
+  exit 0
 fi
 
 cp -r "$TPL" "$MAILDIR"
