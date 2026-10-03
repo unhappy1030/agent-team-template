@@ -8,6 +8,9 @@
 # 같은 저장소 안에서 팀을 여러 개 굴리는 경우: TEAM=<이름>을 명시하면
 # MAILDIR는 <repo>/.agent-mail-<이름>을 쓴다 (agent-mail-template을 그 이름으로
 # 한 번 더 복사해서 준비해둬야 한다).
+# 심볼릭 링크 경로로 들어와도 같은 팀 이름이 되도록 실제 경로로 정규화한다
+# (실사고: 링크/원본 경로로 각각 start해서 같은 메일함에 팀 2개 + watch.py 2개가 떠 중복 배달됨).
+REPO_ROOT="$(cd "$REPO_ROOT" && pwd -P)"
 DEFAULT_TEAM="$(basename "$REPO_ROOT")"
 TEAM="${TEAM:-$DEFAULT_TEAM}"
 if [[ "$TEAM" == "$DEFAULT_TEAM" ]]; then
@@ -21,6 +24,7 @@ fi
 # env로 들어온 MAILDIR이 지금 저장소 기준으로 계산한 값과 다르면, 조용히 그 값을 신뢰하지
 # 않고 경고를 찍은 뒤 현재 저장소 기준 값으로 되돌린다.
 # (실사고 기록: agent-team-maildir-leak.md - 다른 프로젝트의 메일함으로 조용히 오발송됨)
+[[ -n "${MAILDIR:-}" && -d "$MAILDIR" ]] && MAILDIR="$(cd "$MAILDIR" && pwd -P)"  # 링크 경로도 같은 메일함으로 본다
 if [[ -n "${MAILDIR:-}" && "$MAILDIR" != "$_computed_maildir" ]]; then
   echo "⚠ MAILDIR 환경변수($MAILDIR)가 현재 저장소($REPO_ROOT, 팀: $TEAM)와 다른 곳을 가리킵니다." >&2
   echo "  과거 다른 프로젝트/팀에서 export된 값이 새어 들어온 것으로 보여 무시하고 $_computed_maildir 를 씁니다." >&2
