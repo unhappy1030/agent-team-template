@@ -8,15 +8,20 @@ if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
   throw "wsl.exe not found. Windows 10 2004+ or Windows 11 is required."
 }
 
-# A clone made before .gitattributes existed has CRLF scripts, which bash cannot run.
-if ((Get-Content -Raw "$PSScriptRoot\setup.sh") -match "`r") {
-  throw "setup.sh has CRLF line endings. In this folder run:  git rm --cached -r . ; git reset --hard"
+# A clone made before .gitattributes existed has CRLF files, which bash cannot run.
+# Check every file, not just setup.sh: a later pull rewrites only the files it touches.
+$crlf = Get-ChildItem $PSScriptRoot -Recurse -File -Exclude *.ps1 |
+  Where-Object { $_.FullName -notmatch '\\\.git\\' -and (Get-Content -Raw $_.FullName) -match "`r" } |
+  Select-Object -First 1
+if ($crlf) {
+  throw "CRLF line endings found ($($crlf.Name)). Commit or stash your changes, then in this folder run:  git rm --cached -r -q . ; git reset --hard"
 }
 
 # From here on we call wsl.exe, whose stderr would abort the script under 'Stop'
 # in Windows PowerShell 5.1 (NativeCommandError), even with 2>$null.
 $ErrorActionPreference = 'Continue'
 $env:WSL_UTF8 = '1'   # otherwise wsl.exe prints UTF-16 and messages come out garbled
+[Console]::OutputEncoding = [Text.Encoding]::UTF8   # setup.sh prints UTF-8 Korean; default console codepage (e.g. 949) garbles it
 
 # Strip NULs anyway (older wsl.exe ignores WSL_UTF8). docker-desktop distros are not usable shells.
 $out = wsl.exe -l -q 2>$null
@@ -29,6 +34,11 @@ if ($LASTEXITCODE -eq 0) {
 if (-not $distros) {
   Write-Host "No WSL distro found. Installing Ubuntu (admin prompt, reboot may be needed)..."
   Start-Process wsl.exe -ArgumentList '--install', '-d', 'Ubuntu' -Verb RunAs -Wait
+  # Enabling Virtual Machine Platform needs a reboot before any distro can install.
+  if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') {
+    Write-Host "Reboot Windows, then run this script again to finish installing Ubuntu."
+    exit 0
+  }
   Write-Host "Open 'Ubuntu' once from the Start menu to create your Linux user, then run this script again."
   exit 0
 }

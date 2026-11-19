@@ -7,6 +7,11 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 export PATH="$HOME/.local/bin:$PATH"   # 이번 실행 중에 설치되는 codegraph/agt를 바로 잡으려고
+# WSL은 Windows PATH(/mnt/c/...)를 물려준다. 그대로 두면 Windows npm을 잡아서 nvm 설치를 건너뛰고
+# claude/codex를 Windows 쪽에 깐다.
+if grep -qi microsoft /proc/version 2>/dev/null; then
+  PATH="$(printf %s "$PATH" | tr : '\n' | grep -v '^/mnt/' | paste -sd:)"
+fi
 
 echo "== 0/5 tmux / python3 / Node.js =="
 # 팀 기동(tmux)과 send/status(python3)에 필요. 갓 설치한 WSL Ubuntu 등에 없을 수 있다.

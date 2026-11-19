@@ -39,15 +39,27 @@ esac
 # 이미 있는 흔한 설정이라 M-0만 빠져있는 경우가 많고, Alt+방향키는 보통 패널 이동에 이미 쓰이고
 # 있어서 창 전환은 겹치지 않는 Ctrl+Alt로 뺀다.
 TMUX_CONF="$HOME/.tmux.conf"
-MARKER="# agent-team: dashboard 창 전환 단축키"
-if ! grep -qF "$MARKER" "$TMUX_CONF" 2>/dev/null; then
-  cat <<EOF >> "$TMUX_CONF"
+# 블록마다 마커가 따로라, 나중에 추가된 블록도 기존 설치에 재실행만으로 붙는다.
+add_tmux_block() {  # <마커> <안내 문구>, 본문은 stdin
+  local body
+  body="$(cat)"
+  grep -qF "$1" "$TMUX_CONF" 2>/dev/null && return 0
+  printf '\n%s\n%s\n' "$1" "$body" >> "$TMUX_CONF"
+  echo "$2"
+  tmux source-file "$TMUX_CONF" 2>/dev/null || true
+}
 
-$MARKER
+add_tmux_block "# agent-team: dashboard 창 전환 단축키" \
+  "tmux 단축키 추가됨: $TMUX_CONF (Alt+0 창 0으로, Ctrl+Alt+←→ 이전/다음 창)" <<'EOF'
 bind -n M-0 select-window -t 0
 bind -n C-M-Left previous-window
 bind -n C-M-Right next-window
 EOF
-  echo "tmux 단축키 추가됨: $TMUX_CONF (Alt+0 창 0으로, Ctrl+Alt+←→ 이전/다음 창)"
-  tmux source-file "$TMUX_CONF" 2>/dev/null || true
-fi
+
+# dashboard.sh가 mouse on을 켜면 패널 우클릭에 tmux 기본 메뉴(분할/종료 등)가 떠서 실수로 창이
+# 쪼개진다. 메뉴만 끈다(Shift+우클릭은 터미널 자체 메뉴/붙여넣기 그대로).
+add_tmux_block "# agent-team: 패널 우클릭 메뉴 끄기" \
+  "tmux 우클릭 메뉴 끔: $TMUX_CONF" <<'EOF'
+unbind -n MouseDown3Pane
+unbind -n M-MouseDown3Pane
+EOF

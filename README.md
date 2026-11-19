@@ -84,9 +84,9 @@ powershell -ExecutionPolicy Bypass -File setup.ps1
 
 `setup.ps1`이 하는 일:
 
-1. WSL 배포판이 없으면 `wsl --install -d Ubuntu`를 관리자 권한으로 실행한다. 설치 후 재부팅이
-   필요할 수 있고, 시작 메뉴에서 Ubuntu를 한 번 열어 리눅스 사용자를 만든 뒤 **스크립트를 다시
-   실행**한다.
+1. WSL 배포판이 없으면 `wsl --install -d Ubuntu`를 관리자 권한으로 실행한다. '가상 머신
+   플랫폼'이 꺼져 있던 PC는 먼저 **재부팅 후 스크립트를 다시 실행**해야 Ubuntu가 설치된다.
+   Ubuntu 창이 뜨면 리눅스 사용자를 만들고, 그다음 **스크립트를 한 번 더 실행**한다.
 2. 배포판이 있으면 이 폴더(`/mnt/c/...`)에서 WSL 안의 `./setup.sh`를 돌린다 — tmux/python3(apt),
    Node, claude/codex CLI, `agt` 명령까지 전부 WSL 쪽에 설치된다.
 
@@ -174,7 +174,8 @@ agent-team --team featureA start
 `install-cli.sh`는 `~/.tmux.conf`에 `dashboard.sh` 창(overview/에이전트별/mail) 전환용 단축키도
 추가한다(마커 주석으로 중복 추가 방지, 재실행해도 안전): `Alt+0`으로 0번 창 이동(대부분의 개인
 tmux.conf에 이미 있는 `Alt+1~9`의 빠진 자리를 채움), `Ctrl+Alt+←→`로 이전/다음 창 전환(Alt+방향키는
-보통 패널 이동에 이미 쓰여서 겹치지 않게 Ctrl+Alt를 씀).
+보통 패널 이동에 이미 쓰여서 겹치지 않게 Ctrl+Alt를 씀). 또 대시보드가 `mouse on`이라 패널을
+우클릭하면 뜨는 tmux 기본 메뉴(실수로 창이 분할됨)를 끈다. 터미널 자체 메뉴는 `Shift+우클릭`으로 쓴다.
 
 `stop`은 watch.py뿐 아니라 이 팀의 tmux 세션(에이전트 전체 + dashboard가 떠 있으면 그것도)을
 항상 같이 종료한다 — 예전처럼 `--kill-sessions`를 따로 줄 필요는 없다.
