@@ -22,7 +22,7 @@ tmux + 파일 메일함(`inbox.md`) 기반 에이전트 팀 템플릿. 팀 구�
 
 Node.js(없으면 nvm으로 설치) → claude CLI → agy(antigravity) 업데이트 → `agent-team`/`agt` 명령
 등록 → codegraph 설치 + MCP 서버 등록 + 스킬 + 플러그인까지 한 번에 처리한다. 필요한 건 `curl`
-뿐이고 sudo는 안 쓴다(nvm이 `~/.nvm`에 깐다). 재실행하면 그대로 업데이트 스크립트가 된다
+뿐이고 sudo는 tmux/python3가 없을 때 apt로 깔 때만 쓴다(Node는 nvm이 `~/.nvm`에 깐다). 재실행하면 그대로 업데이트 스크립트가 된다
 (`npm install -g @anthropic-ai/claude-code@latest`, `agy update`, `codegraph upgrade`).
 
 agy만은 자동 설치가 안 된다 — https://antigravity.google 에서 설치하고 `agy install`을 한 번
@@ -72,6 +72,48 @@ scripts/agent-team/dashboard.sh   # 대시보드를 다시 만들어야 할 때 
 scripts/agent-team/status.sh      # 메일 스레드 완료 상태
 scripts/agent-team/stop.sh         # watch.py + 이 팀의 tmux 세션(에이전트 전체 + dashboard) 종료
 ```
+
+## Windows (WSL)
+
+팀은 tmux 위에서 돌기 때문에 Windows에서는 **WSL(Ubuntu) 안에서** 실행한다. 템플릿을 Windows에
+클론했다면 PowerShell에서 한 줄이면 된다:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1
+```
+
+`setup.ps1`이 하는 일:
+
+1. WSL 배포판이 없으면 `wsl --install -d Ubuntu`를 관리자 권한으로 실행한다. 설치 후 재부팅이
+   필요할 수 있고, 시작 메뉴에서 Ubuntu를 한 번 열어 리눅스 사용자를 만든 뒤 **스크립트를 다시
+   실행**한다.
+2. 배포판이 있으면 이 폴더(`/mnt/c/...`)에서 WSL 안의 `./setup.sh`를 돌린다 — tmux/python3(apt),
+   Node, claude/codex CLI, `agt` 명령까지 전부 WSL 쪽에 설치된다.
+
+이후로는 **Ubuntu 터미널(또는 Windows Terminal의 Ubuntu 탭)**에서 `agt init` / `agt start`를
+쓴다. Windows 쪽 프로젝트는 `/mnt/c/Users/<이름>/...`로 접근할 수 있지만, 파일 I/O가 느리므로
+작업 저장소는 WSL 홈(`~/...`)에 두는 걸 권한다. VS Code는 WSL 확장으로 그 폴더를 열면 된다.
+
+처음부터 WSL 안에서 `git clone` 했다면 `setup.ps1` 없이 그냥 `./setup.sh`를 실행해도 같다.
+
+### Git Bash에서 `agt init`이 깨질 때
+
+Git Bash에는 tmux/python3가 없어서 `agt start`는 안 되지만 `agt init`까지는 된다. 깨진다면
+원인은 둘 중 하나다:
+
+1. **CRLF 줄바꿈.** Git for Windows는 `core.autocrlf=true`가 기본이라 `.sh`가 CRLF로 체크아웃되고,
+   bash는 `$'\r': command not found`나 `/usr/bin/env: 'bash\r'`로 죽는다(WSL에서 `/mnt/c` 사본을
+   돌릴 때도 같다 — `setup.ps1`이 미리 감지해 알려준다). `.gitattributes`(`* text=auto eol=lf`)로
+   막아뒀지만 **그 전에 클론한 사본은 이미 CRLF**이므로 한 번 되돌려야 한다:
+
+   ```bash
+   cd <템플릿 클론>
+   git rm --cached -r . >/dev/null && git reset --hard   # .gitattributes 기준으로 재체크아웃
+   ```
+
+2. **`agt`가 심볼릭 링크가 아니라 복사본으로 설치됨.** Git Bash의 `ln -s`는 기본 설정에서 파일을
+   복사해버려 디스패처가 옆의 `init.sh`를 못 찾는다. `install-cli.sh`가 링크가 안 만들어지면 원본
+   경로를 박은 래퍼를 대신 설치하므로, 예전 설치가 남아 있으면 그걸 다시 실행하면 된다.
 
 ## 여러 팀 동시 운용 (멀티 팀)
 

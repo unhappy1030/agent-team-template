@@ -1,0 +1,6 @@
+# Git for Windows는 core.autocrlf=true가 기본값이라, 설정을 안 건드리면 클론할 때 이 저장소의
+# .sh/.py가 CRLF로 체크아웃된다. 그러면 Git Bash에서 실행 자체가 깨진다:
+#   $'\r': command not found / syntax error near unexpected token
+#   /usr/bin/env: 'bash\r': No such file or directory   (셰방 줄에 CR이 붙은 경우)
+# 이 저장소는 전부 실행되는 텍스트(셸/파이썬/마크다운)이므로 작업 디렉터리에서도 LF로 고정한다.
+* text=auto eol=lf

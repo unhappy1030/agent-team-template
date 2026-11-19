@@ -8,7 +8,19 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 export PATH="$HOME/.local/bin:$PATH"   # 이번 실행 중에 설치되는 codegraph/agt를 바로 잡으려고
 
-echo "== 0/5 Node.js =="
+echo "== 0/5 tmux / python3 / Node.js =="
+# 팀 기동(tmux)과 send/status(python3)에 필요. 갓 설치한 WSL Ubuntu 등에 없을 수 있다.
+missing=()
+for c in tmux python3; do command -v "$c" >/dev/null || missing+=("$c"); done
+if ((${#missing[@]})); then
+  if command -v apt-get >/dev/null; then
+    echo "  설치: ${missing[*]} (sudo 비밀번호를 물을 수 있음)"
+    sudo apt-get update -qq && sudo apt-get install -y "${missing[@]}"
+  else
+    echo "  경고: ${missing[*]} 없음 - 패키지 관리자로 설치하세요 (없으면 agent-team start 불가)" >&2
+  fi
+fi
+
 # 없으면 nvm으로 깐다(배포판 무관, sudo 불필요). 이미 nvm이 있는데 PATH에만 없는 경우
 # (비대화형 셸, default alias 비어있음 등)도 source + `nvm use --lts`로 살려 쓴다.
 if ! command -v npm >/dev/null; then

@@ -8,8 +8,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../agent-team" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 
 mkdir -p "$BIN_DIR"
-ln -sf "$SCRIPT_DIR/agent-team" "$BIN_DIR/agent-team"
-ln -sf "$SCRIPT_DIR/agent-team" "$BIN_DIR/agt"
+
+# Git Bash(MSYS)는 기본 설정에서 ln -s가 심볼릭 링크가 아니라 "파일 복사"로 떨어진다. 복사본은
+# readlink -f로도 원본 위치를 되짚을 수 없어서 디스패처가 자기 옆의 init.sh/start.sh를 못 찾는다
+# (agt init이 조용히 실패하는 원인). 링크가 안 만들어졌으면 원본 경로를 박은 래퍼를 쓴다.
+link_cmd() {
+  local dest="$1"
+  rm -f "$dest"
+  ln -s "$SCRIPT_DIR/agent-team" "$dest" 2>/dev/null || true
+  [[ -L "$dest" ]] && return 0
+  printf '#!/usr/bin/env bash\nexec "%s/agent-team" "$@"\n' "$SCRIPT_DIR" > "$dest"
+  chmod +x "$dest"
+  echo "  심볼릭 링크를 못 만들어 래퍼 스크립트로 설치했습니다: $dest"
+}
+
+link_cmd "$BIN_DIR/agent-team"
+link_cmd "$BIN_DIR/agt"
 echo "설치됨: $BIN_DIR/agent-team, $BIN_DIR/agt -> $SCRIPT_DIR/agent-team"
 
 case ":$PATH:" in
