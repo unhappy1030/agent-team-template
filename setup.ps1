@@ -13,7 +13,12 @@ if ((Get-Content -Raw "$PSScriptRoot\setup.sh") -match "`r") {
   throw "setup.sh has CRLF line endings. In this folder run:  git rm --cached -r . ; git reset --hard"
 }
 
-# wsl -l -q prints UTF-16, so strip the NULs. docker-desktop distros are not usable shells.
+# From here on we call wsl.exe, whose stderr would abort the script under 'Stop'
+# in Windows PowerShell 5.1 (NativeCommandError), even with 2>$null.
+$ErrorActionPreference = 'Continue'
+$env:WSL_UTF8 = '1'   # otherwise wsl.exe prints UTF-16 and messages come out garbled
+
+# Strip NULs anyway (older wsl.exe ignores WSL_UTF8). docker-desktop distros are not usable shells.
 $out = wsl.exe -l -q 2>$null
 $distros = @()
 if ($LASTEXITCODE -eq 0) {
